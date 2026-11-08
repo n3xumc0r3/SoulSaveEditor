@@ -44,7 +44,7 @@ Il2CppDumper принимает файл (CodeRegistration/MetadataRegistration 
 [16] 0x0297CCE0 +0x011DF8   interfaces
 [17] 0x0298EAD8 +0x2555C0   vtableMethods
 [18] 0x02BE4098 +0x058770   interfaceOffsets
-[19] 0x02C3C808 +0x3E1758   typeDefinitions (39127 × 104 Б)
+[19] 0x02C3C808 +0x3E1758   typeDefinitions (46241 × 88 Б — счётчики uint16!)
 [20] 0x0301DF60 +0x001E28   images (193 × 40 Б)
 [21] 0x0301FD88 +0x003040   assemblies (193 × 64 Б — сходится с images)
 [22] 0x03022DC8 +0x003B78   fieldRefs (1903 × 8 Б)
@@ -139,9 +139,41 @@ cdn.chillyroom.com/game/...             ; ассеты hot-update
 - PGL: `libpglarmor.so`, `libnms.so`, `libfile_lock_pgl.so`, `libbuffer_pgl.so`, `libtax.so`
 - Hot-update скриптинг: `libxlua.so` (Lua)
 
+## Литералы
+
+Всего 76 645 литералов; 74 597 читаются статически, 2048 (записи 480..2527)
+лежат в зашифрованном окне страницы 0 `[0x1000,0x5000)` — равномерное
+распределение байтов (не XOR-0x66; снимется только динамически).
+
+Схема маски (уточнена перекрёстной сверкой таблиц):
+
+```
+[0x0000, 0x1000)      XOR 0x66   (заголовок + первые записи таблицы)
+стр. >= 1: [0x1000, 0x5000) окна XOR 0x66
+стр. 0:    [0x1000, 0x5000) — сильная крипта; [0x5000, 0x10000) — ЧИСТОЕ в сыром файле
+```
+
+Дамп имён: `tools/sk870_metadata_dump.py` -> 46 241 тип / 376 499 метода.
+
+## Облако и бан-система (8.7.0, детали в CLOUD-SAVE.md)
+
+```
+Каналы:  GPV2_{uid} (Google Play V2), GPV2_Test_, GPV4; /DefineCloudSaveID.json
+Легаси:  до 5.5.2 — GPGS Saved Games снапшоты (GooglePlayLoginAndCloudSaveAgent)
+Агенты:  NewCloudSaveAgent, ChannelMigrationManager, ILegencyLoginAndCloudSaveAgent
+Транспорт: CloudPackage.V1.BackupClient: FetchGameDataAsync / GetBlobSaveAsync
+Идентичности: uid, chilly_uid, channel_uid, pf_id (CloudSaveUtil)
+Анти-абьюз: cloudsave/upload_fail_different_account, local_more_payment_point_upload,
+            GetCurrentAccountSaveId vs GetLocalSaveId
+Бан-система: SafeCheckClient /SafeCheck/Validate|Record?|DownloadResource,
+             AntiCheatState{Checking,Punishment}, ReportCheating (UI-жалобы),
+             Err/Banned, флаг бана в лидербордах (是否被封禁), Idcheck.V1
+```
+
 ## Чеклист для эмулятора
 
 1. `files/*.data` — все, включая `game.data`, `battles.data`, `statistic*`.
 2. `shared_prefs/*.v2.playerprefs.xml` — вычитать `DataRijndael128Key`/`DataRijndaelIV`/`DataAES256Key`.
 3. Сейвы до/после первого облачного логина — дифф синхронизации.
 4. (опц.) динамический дамп dump.cs через frida-il2cpp-bridge / Zygisk-Il2CppDumper.
+5. (опц.) дамп трафика `GetBlobSaveAsync`/`FetchGameDataAsync` и ответа `/SafeCheck/Validate`.

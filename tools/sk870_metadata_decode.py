@@ -5,12 +5,16 @@ sk870_metadata_decode.py — decoder for Soul Knight 8.7.0 `global-metadata.dat`
 Soul Knight (ChillyRoom) protects its IL2CPP metadata with a lightweight
 anti-dump mask instead of full encryption:
 
-  * the whole first 64 KiB page (metadata header + start of literal data)
-    is XOR-ed with the single byte 0x66, and the first 8 bytes are ALSO
-    substituted: stored magic 0x12724394 instead of 0xFAB11BAF and a garbage
-    version field instead of the real one;
+  * bytes [0x0000, 0x1000) of page 0 (the metadata header + the first table
+    entries) are XOR-ed with the single byte 0x66, and the first 8 bytes are
+    ALSO substituted: stored magic 0x12724394 instead of 0xFAB11BAF and a
+    garbage version field instead of the real one;
   * every following 64 KiB page has only the window [0x1000, 0x5000) (16 KiB)
     XOR-ed with 0x66, the rest of the page is plaintext;
+  * EXCEPTION: the window [0x1000, 0x5000) of PAGE 0 is protected by a
+    stronger cipher (byte distribution is uniform — not recoverable
+    statically). Those 16 KiB hold stringLiteral table entries 480..2527,
+    i.e. ~2048 of 76645 literals are lost to static analysis (2.7%);
   * the real header is: magic 0xFAB11BAF + version 31 (Unity 2022.3.62f2)
     + 31 (offset, size) pairs = 256 bytes total; regions are contiguous and
     the last one ends exactly at EOF.
@@ -41,15 +45,20 @@ def xor(data: bytes, key: int) -> bytes:
 
 
 def decode(raw: bytes) -> bytes:
-    """Undo the 8.7.0 metadata mask. Pure byte transform, offsets unchanged."""
+    """Undo the 8.7.0 metadata mask. Pure byte transform, offsets unchanged.
+
+    Page 0: only [0x0000, 0x1000) is masked (the window [0x1000, 0x5000) of
+    page 0 uses a stronger cipher and is left as is). Pages >= 1: window
+    [0x1000, 0x5000) masked.
+    """
     buf = bytearray(raw)
     n = len(buf)
 
-    # page 0: entirely masked
-    page0 = min(PAGE, n)
-    buf[0:page0] = xor(bytes(buf[0:page0]), MASK)
+    # page 0: header area only
+    head = min(0x1000, n)
+    buf[0:head] = xor(bytes(buf[0:head]), MASK)
 
-    # every other page: only [0x1000, 0x5000) is masked
+    # every page >= 1: only [0x1000, 0x5000) is masked
     for base in range(PAGE, n, PAGE):
         lo = base + WIN_LO
         hi = min(base + WIN_HI, n)
