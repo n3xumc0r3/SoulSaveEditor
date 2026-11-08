@@ -1,0 +1,42 @@
+plugins {
+	id 'com.android.application'
+	id 'org.jetbrains.kotlin.android'
+}
+
+android {
+	compileSdk 34
+
+	defaultConfig {
+		applicationId "com.n3xumc0r3.soulsaveeditor"
+		minSdk 21
+		targetSdk 34
+		versionCode 39
+		versionName "4.0.0-fork.1"
+        resourceConfigurations += ['en']
+        resValue "string", "version", versionName
+	}
+
+	buildTypes {
+		release {
+			minifyEnabled true
+			shrinkResources false
+			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+		}
+	}
+	compileOptions {
+		sourceCompatibility JavaVersion.VERSION_1_8
+		targetCompatibility JavaVersion.VERSION_1_8
+	}
+	buildFeatures {
+		viewBinding true
+	}
+	namespace 'com.n3xumc0r3.soulsaveeditor'
+}
+
+dependencies {
+	implementation 'androidx.core:core-splashscreen:1.1.0-rc01'
+	implementation 'androidx.appcompat:appcompat:1.7.0'
+	implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+	implementation 'com.google.android.material:material:1.12.0'
+	implementation 'androidx.preference:preference:1.2.1'
+}
