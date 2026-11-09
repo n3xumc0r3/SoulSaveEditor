@@ -190,6 +190,55 @@ MoveData/FinishMoveData`, статусы этапов в PlayerPrefs
   формата (крипта эры ≤5.5.2 снята: DES crst1/iambo, XOR game.data) —
   кандидат в фичи форка (бэкап/восстановление GPGS-сейвов).
 
+### 3.3 Статический вердикт по dual-write (11.11, дамп 8.7.0)
+
+APK 8.7.0 перекачан побайтово (pixeldrain i7TH581X, 679 467 257 Б,
+APKCube .apks: base + split_UnityDataAssetPack + split_config.arm64_v8a),
+метадата декодирована, дамп имён 46 241 тип / 376 499 метод —
+`tools/sk870_metadata_dump.py`; скан литералов — `tools/sk870_litgrep.py`
+и `tools/sk870_litmulti.py`.
+
+Двойная запись в GPGS подтверждается на уровне имён и конфига:
+
+* `GooglePlayLoginAndCloudSaveAgent.SaveCloudSaveData` — метод записи
+  снапшота жив (поля `saveName`, `_authCode`, `savedGameMetadata`; в
+  литералах — `com.google.android.gms.games.snapshot.SnapshotMetadataChange$Builder`,
+  обработка конфликтов `getConflictingSnapshot` / `getResolutionSnapshotContents`);
+* `NewCloudSaveAgent.DealGPAndIosSendDataToLegencyWhenBinded` + RPC-вариант —
+  после привязки GP/iOS данные отправляются в легаси-канал;
+* `NewDynamicConfig.AutoUploadLegencySave { bool AutoUpload; bool NeedInspect; }`
+  — автозагрузка в легаси управляется **серверным динамическим конфигом**
+  (`NeedInspect` — гейт `PayInspect`);
+* `CallFrom.Auto` + `LegencyLoginAndCloudSaveManager.HasAutoRestoreAfterFirstInstallApp`
+  — автоматические пути вызова при логине/первой установке;
+* `MoveStep`: `LegencyAccountChange`, `CloudSaveIdDifferent` — коды ошибок
+  с наших скриншотов; `BindLogicFrom`: `GuestUpload`/`GuestDnload`;
+* список версий-отсечек легаси одним литералом: `5.2.0…5.5.2…5.x.x`.
+
+Бан-контуры клиента (что умеет показывать):
+
+* `Err/Banned` в семействе Err/*; локализация `player_banned/account_title`,
+  `player_banned/account_desc_0`, `player_banned/multi_game_desc`,
+  `im/tip/player_banned`;
+* `Utils.CommonUtils.ErrorUtil.ShowPlayerBannedDetails` внутри
+  `HandleApiException`/_`Unauthorized`/_`Common` — централизованный
+  обработчик API-ошибок ⇒ теоретически сервер может ответить баном на
+  любой вызов; где реально возвращается — покажет только трафик;
+* `<SelfIsBanned>k__BackingField`, `ACTIVITY_LEGEND_RANKING_PLAYER_BANNED`
+  — флаги в соц./рейтинговых контурах;
+* `Utils.CommonUtils.EmulatorUtil`: `IsEmulator`/`CheckEmulator` +
+  `GPCheckEmulator`/`IOSCheckEmulator`/`CNCheckEmulator` — клиентский
+  детект эмулятора по платформам (питает SafeCheck-репорты).
+
+`DefineCloudSaveID.json` полного URL в бинаре не имеет — собирается в
+рантайме (cdn2.chillyroom.com = Aliyun OSS; пробы `game/soulknight/…` и
+`game/SoulKnight/…` дают NoSuchKey — путь ветко-зависимый).
+
+**Итог:** автозапись в GPGS существует и включается серверным флагом
+`AutoUpload`. Значит актуальный сейв замороженного аккаунта, скорее всего,
+дублируется в Google прямо сейчас. Проверка за 10 минут —
+`tools/frida_gpgs_snapshots.js`: имена `GPV2_*` + `lastModifiedTimestamp`.
+
 ## 4. Система банов и риск-контроль
 
 ### 4.1 Что видно в клиенте 8.7.0
