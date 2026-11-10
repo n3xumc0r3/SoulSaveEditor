@@ -89,29 +89,85 @@ statisticData.KrppCountedOrderIds        []
 (`SKGIFT`, `SKNIGHT`, …), `gameVersion: 2130`, режимные saveId — в
 `mode2SaveGameIdDic`.
 
-## 4. Путь записи (v3.3, в разработке)
+## 4. Путь записи (v3.3 — ДОКАЗАН noop-записью 11.11.2026)
 
-Так как `open(SnapshotMetadata)` возвращает полный `Snapshot`, цепочка записи
-короткая — те же вызовы, что и на чтение:
+Так как `open(SnapshotMetadata)` возвращает полный `Snapshot`, цепочка записи —
+те же вызовы, что и на чтение. Полностью подтверждена живым прогоном
+`tools/frida_sk_snapshot_write.js` (attach к процессу игры, REPL, без хуков):
 
-1. `blockWritesOff()` — временно снять блокиратор записи (см. v3.2).
-2. `open(SnapshotMetadata)` — подтверждённый путь.
-3. `contents.writeBytes(data)` — перезапись буфера с нуля.
-4. `client.commitAndClose(snapshot, metadataChange)` — коммит; Google проверяет
-   только Google-авторизацию и размер (≤3 МБ), ChillyRoom GPGS-запись не видит
-   (см. [CLOUD-SAVE.md §3.2](CLOUD-SAVE.md)).
-5. Проверка перед коммитом: `readFully()` после `writeBytes` должен дать тот же
-   sha256, что и вносимый буфер; после — `listNow()` должен показать новый
-   `LastModifiedTimestamp`.
+1. `open(SnapshotMetadata)` → `DataOrConflict` → `getData()` → `Snapshot`
+   (конфликт → **аборт**, авто-resolve не используется).
+2. `contents.writeBytes(byte[])` — **прямой вызов на типизированной обёртке
+   Frida** (стратегия S1). Резолвить метод через
+   `Java.use(<runtimeClass>).writeBytes.overloads` НЕЛЬЗЯ — мост в этой связке
+   даёт `TypeError: not a function` (см. «Грабли»).
+3. VERIFY перед коммитом: `readFully()` после записи обязан дать тот же
+   sha256, что и вносимый буфер; не совпал — **NO COMMIT**.
+4. `client.commitAndClose(snapshot, SnapshotMetadataChange)` — legacy v1
+   перегрузка `(Snapshot, MetadataChange)`. С пустым change описание и
+   playedTime сохраняются, обновляется только LastModifiedTimestamp. Google
+   проверяет только Google-авторизацию и размер (≤3 МБ), ChillyRoom GPGS-запись
+   не видит (см. [CLOUD-SAVE.md §3.2](CLOUD-SAVE.md)).
+5. Авто-проверка: `listNow()` показывает свежий `LastModifiedTimestamp`.
 
-Безопасность: конфликт при `open()` — **аборт** (никаких авто-resolve); любые
-операции только при живом эталоне дампа (файл + sha256 из §2).
+### Доказательство (live-лог 11.11.2026, `writeSnapNoop`)
+
+| Шаг | Результат |
+|---|---|
+| `open(SnapshotMetadata)` | OK, конфликтов нет |
+| текущий контент облака | 693 800 байт, sha256 `1490c88d…` == эталонный дамп §2 |
+| запись | OK via **S1** `contents.writeBytes(byte[])` — 693 800 байт в буфер |
+| VERIFY | sha256 прочитанного обратно буфера совпал → commit разрешён |
+| `commitAndClose` | **COMMIT OK**: LastModifiedTimestamp 1794328956355 → 1794342792628 (2026-11-10T20:33:12Z) |
+| `listNow()` после | свежий LastModifiedTimestamp подтверждён; Description/PlayedTime не изменились |
+
+Итог: **восстановление/замена облачного сейва возможны**; эталонный дамп §2 —
+точка восстановления.
+
+### Грабли (зафиксированы прогоном)
+
+1. **`getClass().getName()` на типизированных обёртках не вызывается** в этой
+   связке (Frida 17.6.2 + legacy PGS v1): метадата печатается как `?`, а
+   `Java.use(<runtimeClass>)` по такому имени даёт ClassNotFoundException,
+   `.writeBytes.overloads` — TypeError. Правило v3.2 расширено и на запись:
+   методы звать только напрямую на обёртке (`w.contents.writeBytes(...)`),
+   имя класса при необходимости — из свойства `$className` (v3.3.2).
+2. **Scoped storage**: `/sdcard/skdump` из процесса приложения не создаётся
+   (`mkdirs` молча не срабатывает, затем ENOENT). Рабочий каталог для дампов
+   и push-файлов —
+   `/storage/emulated/0/Android/data/com.ChillyRoom.DungeonShooter/files/skdump`.
+3. Блокиратор записи снимать вручную не пришлось: сессия шла без
+   вооружённого `blockWritesOn`, а на случай вооружённого скрипт сам поднимает
+   его на время нашей записи и переармирует после (`withWritesUnblocked`).
+
+### Рецепт реальной правки (сейф-процедура)
+
+PC:
+
+```
+# эталонный дамп уже есть: 693 800 байт, sha256 1490c88d… (точка восстановления)
+python patch_cloud_save.py snap_SoulKnightCloud_XXXX.bin cloud_patched.bin \
+    --set gameData.gems=1000000 --set gameData.lastGems=1000000 --set gameData.varGems=0
+adb push cloud_patched.bin /storage/emulated/0/Android/data/com.ChillyRoom.DungeonShooter/files/skdump/
+```
+
+Устройство (REPL того же скрипта):
+
+```
+writeSnapFile('SoulKnightCloud', '/storage/emulated/0/Android/data/com.ChillyRoom.DungeonShooter/files/skdump/cloud_patched.bin')
+listNow()   // свежий LastModifiedTimestamp = запись принята
+```
+
+Затем перезапустить игру и убедиться, что сейв грузится. Откат — тот же
+`writeSnapFile` с эталонным дампом (восстановление уже доказано noop-прогоном).
 
 ## 5. Инструменты
 
 | Файл | Назначение |
 |---|---|
 | `tools/frida_sk_snapshot_dump.js` | v3.2: listNow / readSnap / passiveOn / blockWritesOn |
+| `tools/frida_sk_snapshot_write.js` | v3.3.2: WRITE-путь — writeSnapNoop / writeSnapFile (S1, verify, commit) |
+| `tools/patch_cloud_save.py` | патчер облачного JSON: UTF-16LE → `--set PATH=VALUE` → UTF-16LE (typo-guard на ключи) |
 | `tools/sk870_decrypt_all.py` | расшифровка ЛОКАЛЬНЫХ сейвов (поли XOR / polyxor) |
 | `tools/analyze_cloud_dump.py` | UTF-16LE → UTF-8, обзор секций дампа |
 | `tools/drill_cloud_save.py` | точечный дрилл значений (леджер, герои, инвентарь) |
@@ -119,8 +175,13 @@ statisticData.KrppCountedOrderIds        []
 
 ## 6. Следующие шаги
 
-- [ ] v3.3 `writeSnapNoop()` — write-back тех же байт (проверка write path).
-- [ ] v3.3 `writeSnapFile(path)` — запись выбранного файла (восстановление/правка).
-- [ ] Патчер JSON (`patch_cloud_save.py`) — согласованные правки леджера.
+- [x] v3.3 `writeSnapNoop()` — write-back тех же байт: **доказано** 11.11.2026
+      (VERIFY OK → COMMIT OK, свежий LastModifiedTimestamp в `listNow`).
+- [x] v3.3 `writeSnapFile(path)` — запись файла готова (обстреляна noop'ом);
+      применить при первой реальной правке/восстановлении.
+- [x] Патчер JSON (`patch_cloud_save.py`) — готов; round-trip на эталонном
+      дампе даёт валидный UTF-16LE JSON (`7b 00 22 00`).
+- [ ] Первая реальная правка на согласованном леджере (gems = lastGems = X,
+      varGems = 0) + контрольная загрузка сейва в игре.
 - [ ] Определить, возвращает ли `Err/Banned` при записи в **новое** облако
       ChillyRoom (отдельно от GPGS).
