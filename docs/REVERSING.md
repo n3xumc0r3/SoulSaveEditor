@@ -79,10 +79,17 @@ CodeRegistration/MetadataRegistration, но падает (integer overflow) пр
 | Файл | Формат | Статус на 8.7.0 |
 |---|---|---|
 | `shared_prefs/*.v2.playerprefs.xml` | открытый XML | без изменений; здесь же привязки аккаунтов и (ожидаемо) ключи Rijndael |
-| `files/battles.data` | открытый JSON | без изменений |
-| `files/game.data` | повторяющийся XOR | легаси-ключ не подтверждён на 8.7.0 — нужна живая копия |
+| `files/battles*.data` (старое имя `battle*.data`) | открытый JSON | без изменений |
+| `files/game.data` | **XOR по кольцу: `data[i] ^= key[i % 15]`** | ключ легаси `slcz}guc\x7fWmlkJ_`; схема подтверждена резолвером SKDEditor, живость ключа на 8.7.0 — проверить на живом файле |
 | `statistic*.data` и прочие `*.data` | `Base64(DES-CBC-PKCS5(JSON))` | ключ **`crst1\0\0\0` жив** (литерал в метадате); IV предположительно легаси `Ahbool\0\0` |
 | сейвы персонажей (новое) | **Rijndael-128 (AES)** | миграция в 8.7.0, см. ниже |
+
+Правила резолвера (по `GameFileResolver` SKDEditor): обработчик выбирается **по имени файла**;
+шаблон имени — `<имя>_(<accountId>|LOCAL)_[<слот>].data`, где accountId — числовой id профиля
+(тот же, что в облачном пути `drive://a_<userId>/…`), `LOCAL` — локальный (не-GPGS) профиль,
+слот — опциональный номер. SKDEditor при бэкапе вычищает accountId из имён — при переносе
+сейва на другой аккаунт файлы надо переименовать под новый id (второй маркер принадлежности
+после `cloudSaveId` в playerprefs/JSON).
 
 ### 3.1 Миграция на Rijndael-128 (главное новое в 8.7.0)
 
@@ -114,6 +121,36 @@ CodeRegistration/MetadataRegistration, но падает (integer overflow) пр
 
 Забавная деталь: старый IV `Ahbool` в 8.7.0 **повышен до ключа** SDK-DES,
 а новый IV — `abo123` («Abo» — тег автора крипто-классов в C#).
+
+### 3.3 Поведение JSON-парсера и карта полей (CRDE, 2026)
+
+Практические правила правок, подтверждаемые экосистемой редакторов и нашим облачным дампом:
+
+1. **Отсутствующее поле == дефолт C#-класса**: `0` для int/long, `false` для bool,
+   `null` для объектов/списков. Поэтому старые сейвы открываются в новых версиях,
+   а в облачном дампе `escapeSeasonData: null` — поле сезона просто не заполнялось.
+2. **Лишние/устаревшие поля игнорируются** (forward-compat по той же причине).
+3. Следствия для редактора: числовые поля можно ДОБАВЛЯТЬ (сначала 0, затем значение);
+   опускать существующие — нельзя без риска (списки местами ожидаются ненулевыми).
+4. `serialzedVersion: 1` (опечатка оригинальная) — версия схемы; миграции завязаны на неё.
+
+Карта операций CRDE по SK-сейву (де-факто перечень безопасных для правки полей
+актуальной версии; дефолты/лимиты из `defaults` CRDE):
+
+| Операция | Дефолт/лимит CRDE |
+|---|---|
+| Set gems | min 800 000, max 1 000 000 |
+| Set fish | min 800, max 1000 |
+| Set season coins | min 80 000, max 100 000 |
+| Set materials maximum count | 400–499 |
+| Set plants maximum count | 400–499 |
+| Set starting coins | 10 |
+
+и unlock-операции: battle pass, everything in hall, heroes and skills, kill effects,
+lobby skins, mounts, pets, plant pots, reborn card, skins, trophies, weapon skins,
+research all blueprints, unlock all weapons in forge table, gold frame all enemies,
+buy plant pots/reborn card. (Отдельный список `OWL` в CRDE — это Otherworld Legends.)
+Наши значения из облака в эти рамки укладываются: `gems=1000` — консервативно.
 
 ## 4. Нативная крипто SDK (`libnative-lib.so`) — снята полностью
 
@@ -205,6 +242,7 @@ decrept("1\"8ku|TJ",   "PASSWORD")  ->  b"abo123\x00\x00"   ; DES-IV
 | `tools/sk870_metadata_decode.py` | декодер метадаты (проверен) |
 | `tools/sk870_metadata_dump.py` | дамп имён типов/методов/полей из метадаты (46 241 тип) |
 | `tools/sk870_crept_crypto.py` | poly-XOR + SDK DES (selftest) |
+| `tools/sk_local_save.py` | CLI расшифровки/шифровки локальных `.data` (автодетект по имени, `ids` — вытянуть `cloudSaveId` из playerprefs.xml) |
 | `docs/RE-NOTES.md` | шпаргалка: регионы, оффсеты, строки, классы |
 | `docs/CLOUD-SAVE.md` | облачная система сохранений (GPV2) и система банов |
 | `download/sk870_crypto.py` (вне репо) | CLI по всем схемам сразу |
