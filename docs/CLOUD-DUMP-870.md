@@ -124,6 +124,17 @@ statisticData.KrppCountedOrderIds        []
 Итог: **восстановление/замена облачного сейва возможны**; эталонный дамп §2 —
 точка восстановления.
 
+### Вторая сессия (11.11.2026): первая РЕАЛЬНАЯ правка закоммичена
+
+`patch_cloud_save.py`: `gameData.gems = gameData.lastGems = 1000`,
+`varGems = 0` (согласованный леджер) → 698 716 байт (было 693 800; +4 916 —
+ожидаемо: `ensure_ascii` разворачивает кириллицу в `\uXXXX`, 12 байт на escape
+против 2 байт на символ; до лимита 3 МБ далеко). sha256
+`094216e9151e2554d248ad1c0ddeb5aef54111a77e0e86472b9572d77a8064b3` →
+VERIFY OK → **COMMIT OK ×2** (1794343747132, 1794343762167), свежий
+LastModifiedTimestamp подтверждён `listNow()`. Осталось: контрольная загрузка
+в игре (см. §6).
+
 ### Грабли (зафиксированы прогоном)
 
 1. **`getClass().getName()` на типизированных обёртках не вызывается** в этой
@@ -139,6 +150,16 @@ statisticData.KrppCountedOrderIds        []
 3. Блокиратор записи снимать вручную не пришлось: сессия шла без
    вооружённого `blockWritesOn`, а на случай вооружённого скрипт сам поднимает
    его на время нашей записи и переармирует после (`withWritesUnblocked`).
+4. **Имя push-файла на устройстве может не совпасть** (live-сессия 2):
+   `adb push .../cloud_patched.bin` отчитался успехом, но из процесса игры
+   точное имя давало ENOENT, а читалось укороченное имя `cloud_patche`
+   (ровно тот же размер и содержимое). v3.3.3 при ENOENT сам печатает листинг
+   каталога глазами процесса игры (`listDeviceDir`); контроль снаружи —
+   `adb shell ls -la /sdcard/Android/data/com.ChillyRoom.DungeonShooter/files/skdump/`.
+5. **Stale Activity**: в долгой Frida-сессии `findActivity()` может вернуть
+   отвязанный Activity — `getExternalFilesDir` падает NPE и убивает всю
+   fallback-цепочку дампов (на коммит не влияет). v3.3.3 берёт каталоги
+   из Application (`ActivityThread.currentApplication()`) в первую очередь.
 
 ### Рецепт реальной правки (сейф-процедура)
 
@@ -158,15 +179,22 @@ writeSnapFile('SoulKnightCloud', '/storage/emulated/0/Android/data/com.ChillyRoo
 listNow()   // свежий LastModifiedTimestamp = запись принята
 ```
 
-Затем перезапустить игру и убедиться, что сейв грузится. Откат — тот же
-`writeSnapFile` с эталонным дампом (восстановление уже доказано noop-прогоном).
+Перед `writeSnapFile` сверьте имя файла на устройстве глазами процесса игры
+(скрипт v3.3.3 сам печатает листинг при ENOENT) или снаружи:
+`adb shell ls -la /sdcard/Android/data/com.ChillyRoom.DungeonShooter/files/skdump/`.
+
+Пока игра запущена со старым состоянием в памяти, её очередной автосейв может
+перезаписать облако обратно: после коммита сразу
+`adb shell am force-stop com.ChillyRoom.DungeonShooter`, затем рестарт и
+проверка. Откат — тот же `writeSnapFile` с эталонным дампом
+(восстановление уже доказано noop-прогоном).
 
 ## 5. Инструменты
 
 | Файл | Назначение |
 |---|---|
 | `tools/frida_sk_snapshot_dump.js` | v3.2: listNow / readSnap / passiveOn / blockWritesOn |
-| `tools/frida_sk_snapshot_write.js` | v3.3.2: WRITE-путь — writeSnapNoop / writeSnapFile (S1, verify, commit) |
+| `tools/frida_sk_snapshot_write.js` | v3.3.3: WRITE-путь — writeSnapNoop / writeSnapFile (S1, verify, commit, listDeviceDir) |
 | `tools/patch_cloud_save.py` | патчер облачного JSON: UTF-16LE → `--set PATH=VALUE` → UTF-16LE (typo-guard на ключи) |
 | `tools/sk870_decrypt_all.py` | расшифровка ЛОКАЛЬНЫХ сейвов (поли XOR / polyxor) |
 | `tools/analyze_cloud_dump.py` | UTF-16LE → UTF-8, обзор секций дампа |
@@ -181,7 +209,9 @@ listNow()   // свежий LastModifiedTimestamp = запись принята
       применить при первой реальной правке/восстановлении.
 - [x] Патчер JSON (`patch_cloud_save.py`) — готов; round-trip на эталонном
       дампе даёт валидный UTF-16LE JSON (`7b 00 22 00`).
-- [ ] Первая реальная правка на согласованном леджере (gems = lastGems = X,
-      varGems = 0) + контрольная загрузка сейва в игре.
+- [x] Первая реальная правка на согласованном леджере закоммичена в облако
+      11.11.2026 (gems = lastGems = 1000, varGems = 0; VERIFY+COMMIT OK ×2).
+- [ ] Контрольная загрузка в игре: force-stop → рестарт → 1000 алмазов,
+      сейв цел (загрузился, инвентарь/герои на месте).
 - [ ] Определить, возвращает ли `Err/Banned` при записи в **новое** облако
       ChillyRoom (отдельно от GPGS).

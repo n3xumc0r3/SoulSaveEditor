@@ -16,7 +16,7 @@ Reverse-engineering notes and tools for Soul Knight 8.7.0 save/cloud systems liv
 
 - [`docs/REVERSING.md`](docs/REVERSING.md) — metadata decode, local save crypto
 - [`docs/CLOUD-SAVE.md`](docs/CLOUD-SAVE.md) — cloud save architecture (GPGS legacy + ChillyRoom cloud), ban/risk system
-- [`docs/CLOUD-DUMP-870.md`](docs/CLOUD-DUMP-870.md) — actual GPGS snapshot dump: cloud save is **plain UTF-16LE JSON**; cloud **write path proven** (sha-verified noop commit, 11.11.2026)
+- [`docs/CLOUD-DUMP-870.md`](docs/CLOUD-DUMP-870.md) — actual GPGS snapshot dump: cloud save is **plain UTF-16LE JSON**; cloud **write path proven** and **first real edit committed** (sha-verified, 11.11.2026)
 - [`tools/`](tools/) — frida snapshot dump/read/write scripts, cloud-save JSON patcher, decryptors, dump analyzers
 
 Personal save data (dumps, decodes) is **never** committed — see `.gitignore`.

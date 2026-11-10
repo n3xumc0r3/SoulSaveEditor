@@ -1,5 +1,5 @@
 /*
- * frida_sk_snapshot_write.js  v3.3.2  (2026-11-11)
+ * frida_sk_snapshot_write.js  v3.3.3  (2026-11-11)
  * (runs in the GAME process - Soul Knight 8.7.0, legacy PGS v1 SDK)
  *
  * v3.2 -> v3.3 (WRITE PATH - the "b" experiment):
@@ -52,6 +52,20 @@
  *     storage: /sdcard/skdump can never be created from an app process)
  *     instead of failing with a scary FileNotFoundException - the app-specific
  *     fallback dir remains the proven dump location.
+ *
+ * v3.3.2 -> v3.3.3 (SECOND live run: the first REAL EDIT was committed -
+ *   patched JSON with gems=1000/lastGems=1000/varGems=0, 698716 bytes,
+ *   sha-verified, committed twice, listNow() confirms fresh LastModified):
+ *   - writeSnapFile(): when the pushed file cannot be read back, list the
+ *     parent directory AS THE GAME PROCESS SEES IT (names + byte sizes).
+ *     Live run: "adb push .../cloud_patched.bin" reported success, yet only
+ *     a SHORTER on-device name ("cloud_patche") was readable from inside the
+ *     game process - a name mismatch is invisible without a listing.
+ *   - saveBytes(): collect fallback dirs from the Application context
+ *     (ActivityThread.currentApplication()) FIRST; in the live run the
+ *     long-lived Frida session found a stale Activity whose
+ *     getExternalFilesDir() NPE'd, killing the whole fallback chain
+ *     (noise only - the commit itself was unaffected).
  *
  * v3.2 changelog (kept): policy try-chain rejected by this server/client combo
  *   (all explicit policies -> "Must provide a valid conflict policy!"), so
@@ -385,13 +399,25 @@ function dumpConflictAny(conflict, uniqueName) {
 function saveBytes(name, bytes) {
   var File = Java.use('java.io.File');
   var dirs = [File.$new(OUT_DIR)];
-  safe('fallback dirs', function () {
+  // Application context FIRST: it survives activity teardown (a stale
+  // Activity made getExternalFilesDir NPE and killed the chain in live run 2)
+  safe('fallback dirs (app ctx)', function () {
+    var app = Java.use('android.app.ActivityThread').currentApplication();
+    if (app !== null && app !== undefined) {
+      var efd = app.getExternalFilesDir(null);
+      if (efd !== null && efd !== undefined) dirs.push(File.$new('' + efd.getAbsolutePath() + '/skdump'));
+      var ifd = app.getFilesDir();
+      if (ifd !== null && ifd !== undefined) dirs.push(File.$new('' + ifd.getAbsolutePath() + '/skdump'));
+    }
+    return true;
+  });
+  safe('fallback dirs (activity ctx)', function () {
     var act = findActivity();
     if (act) {
-      var efd = act.getExternalFilesDir(null);
-      if (efd !== null && efd !== undefined) dirs.push(File.$new('' + efd.getAbsolutePath() + '/skdump'));
-      var ifd = act.getFilesDir();
-      if (ifd !== null && ifd !== undefined) dirs.push(File.$new('' + ifd.getAbsolutePath() + '/skdump'));
+      try {
+        var efd = act.getExternalFilesDir(null);
+        if (efd !== null && efd !== undefined) dirs.push(File.$new('' + efd.getAbsolutePath() + '/skdump'));
+      } catch (e) {}
     }
   });
   for (var i = 0; i < dirs.length; i++) {
@@ -431,6 +457,32 @@ function readFileBytes(path) {
     log('    [i] file ' + path + ' = ' + total + ' bytes');
     return baos.toByteArray();
   });
+}
+
+// v3.3.3: show what is ACTUALLY on the device, as seen from the game process
+// (live run: pushed "cloud_patched.bin", readable name was "cloud_patche")
+function listDeviceDir(path) {
+  return safe('list ' + path, function () {
+    var File = Java.use('java.io.File');
+    var f = File.$new(path);
+    var dir = f.isDirectory() ? f : f.getParentFile();
+    if (dir === null || dir === undefined || !dir.isDirectory()) {
+      log('    [i] parent dir missing as well: ' + path);
+      return false;
+    }
+    var entries = dir.listFiles();
+    if (entries === null || entries === undefined) {
+      log('    [i] dir not listable from this process: ' + dir.getAbsolutePath());
+      return false;
+    }
+    log('[i] contents of ' + dir.getAbsolutePath() + ' (game process view):');
+    for (var i = 0; i < entries.length; i++) {
+      var len = '?';
+      try { len = '' + entries[i].length(); } catch (e) {}
+      log('    - ' + entries[i].getName() + '  (' + len + ' bytes)');
+    }
+    return true;
+  }) === true;
 }
 
 /* ---------- cloud-write blocker (v3.2, unchanged behaviour) ---------- */
@@ -905,6 +957,7 @@ function writeSnapFile(uniqueName, path) {
     var fbytes = readFileBytes(path);
     if (fbytes === null || fbytes === undefined || fbytes.length === 0) {
       log('[!] file empty/unreadable - ABORT');
+      listDeviceDir(path); // real on-device names/sizes - often a name mismatch
       return 'empty-file';
     }
     var s256 = sha256(fbytes);
@@ -973,7 +1026,7 @@ function status() {
 
 setTimeout(function () {
   Java.perform(function () {
-    log('[*] frida_sk_snapshot_write.js v3.3.2 - WRITE PATH PROVEN (noop commit 11.11.2026; hookless; REPL-driven)');
+    log('[*] frida_sk_snapshot_write.js v3.3.3 - WRITE PATH PROVEN + first real edit committed (hookless; REPL-driven)');
     log('[*] READ:   listNow() | readSnap("<uniqueName>")');
     log('[*] WRITE:  writeSnapNoop("SoulKnightCloud")   <- start with THIS one (same bytes back)');
     log('[*]         writeSnapFile("<uniqueName>", "<path-on-device>")');
