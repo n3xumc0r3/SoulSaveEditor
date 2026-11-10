@@ -13,3 +13,11 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# reverse-engineering session artifacts (personal save data, never commit)
+*.bin
+*.dec_*.bin
+snap_*
+skdump/
+SoulKnightCloud*.json
+*.pretty.json
