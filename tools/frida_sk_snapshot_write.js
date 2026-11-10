@@ -1,5 +1,5 @@
 /*
- * frida_sk_snapshot_write.js  v3.3.3  (2026-11-11)
+ * frida_sk_snapshot_write.js  v3.3.4  (2026-11-11)
  * (runs in the GAME process - Soul Knight 8.7.0, legacy PGS v1 SDK)
  *
  * v3.2 -> v3.3 (WRITE PATH - the "b" experiment):
@@ -66,6 +66,24 @@
  *     long-lived Frida session found a stale Activity whose
  *     getExternalFilesDir() NPE'd, killing the whole fallback chain
  *     (noise only - the commit itself was unaffected).
+ *
+ * v3.3.3 -> v3.3.4 (THIRD live run: the emulator REFUSES to load the cloud
+ *   save - "Старое сохранение относится к GPV2_235288940, его нельзя
+ *   загрузить". The save carries the phone account's cloudSaveId; the
+ *   emulator's installation expects a DIFFERENT one - a client-side
+ *   ownership check. It only fired now because our commits made the cloud
+ *   save the freshest one, so the emulator tried to pull it. Plan: find the
+ *   expected id, patch cloudSaveId inside the JSON, re-upload):
+ *   - NEW findIds(prefix='GPV2_'): scans rw- native memory for the prefix
+ *     as UTF-16LE (mono/il2cpp strings) AND as ASCII, prints distinct hits.
+ *     The ids are NOT java.lang.String (Unity IL2CPP), so Java heap walkers
+ *     cannot see them - Memory.scanSync can. Run with the error dialog or
+ *     main menu on screen; the expected id = the hit that differs from the
+ *     id shown in the error text. Standalone "GPV2_..." strings are id
+ *     candidates; a hit looking like {"serialzedVersion"... is the save
+ *     buffer itself. Fallback: decrypt the LOCAL save
+ *     (tools/sk870_decrypt_all.py) and read cloudSaveId from there.
+ *   - pairs with patch_cloud_save.py v1.1 --set-str (no shell quoting pain).
  *
  * v3.2 changelog (kept): policy try-chain rejected by this server/client combo
  *   (all explicit policies -> "Must provide a valid conflict policy!"), so
@@ -1010,6 +1028,56 @@ function readSnap(uniqueName) {
   });
 }
 
+/* ---------- cloudSaveId finder (v3.3.4) ---------- */
+
+// The game refuses a cloud save whose cloudSaveId is not its own:
+// "Старое сохранение относится к GPV2_..., его нельзя загрузить".
+// The ids live in mono/il2cpp strings (UTF-16LE in native memory), NOT in
+// java.lang.String - so scan rw- memory directly. Run while the error dialog
+// or the main menu is on screen; both ids should be resident.
+function findIds(prefix) {
+  if (prefix === null || prefix === undefined || '' + prefix === '') prefix = 'GPV2_';
+  var p = '' + prefix;
+  var pat16 = '', pat8 = '';
+  for (var i = 0; i < p.length; i++) {
+    var h = (p.charCodeAt(i) & 0xff).toString(16);
+    if (h.length < 2) h = '0' + h;
+    pat16 += h + ' 00 ';
+    pat8 += h + ' ';
+  }
+  log('[*] findIds("' + p + '"): scanning rw- memory (UTF-16LE + ASCII); may take a minute ...');
+  var seen = {};
+  var ranges = Process.enumerateRanges('rw-');
+  log('[i] ' + ranges.length + ' ranges');
+  ranges.forEach(function (r) {
+    if (r.size > 128 * 1024 * 1024) return; // skip monster mappings, stay snappy
+    [{ pat: pat16, wide: true }, { pat: pat8, wide: false }].forEach(function (job) {
+      var ms = [];
+      try { ms = Memory.scanSync(r.base, r.size, job.pat); } catch (e) { return; }
+      ms.forEach(function (m) {
+        var s = '';
+        try { s = job.wide ? m.address.readUtf16String(96) : m.address.readCString(96); } catch (e) {}
+        if (!s) return;
+        var mm = s.match(/[ -~]{4,}/);
+        if (!mm) return;
+        var key = (job.wide ? 'u16' : 'asc') + '  "' + mm[0] + '"';
+        if (!seen[key]) { seen[key] = 0; log('  [+] ' + key); }
+        seen[key]++;
+      });
+    });
+  });
+  var keys = Object.keys(seen);
+  log('[*] findIds done: ' + keys.length + ' distinct string(s).');
+  if (keys.length === 0) {
+    log('    nothing in memory - keep the error dialog open (or reopen it) and retry;');
+    log('    or take the id from the decrypted LOCAL save (tools/sk870_decrypt_all.py).');
+  } else {
+    log('    expected id = the standalone GPV2_... string that DIFFERS from the');
+    log('    id in the error text (GPV2_235288940 = the save\'s own id).');
+  }
+  return keys;
+}
+
 /* ---------- startup ---------- */
 
 function status() {
@@ -1026,8 +1094,8 @@ function status() {
 
 setTimeout(function () {
   Java.perform(function () {
-    log('[*] frida_sk_snapshot_write.js v3.3.3 - WRITE PATH PROVEN + first real edit committed (hookless; REPL-driven)');
-    log('[*] READ:   listNow() | readSnap("<uniqueName>")');
+    log('[*] frida_sk_snapshot_write.js v3.3.4 - WRITE PATH + cloudSaveId finder (hookless; REPL-driven)');
+    log('[*] READ:   listNow() | readSnap("<uniqueName>") | findIds("GPV2_")');
     log('[*] WRITE:  writeSnapNoop("SoulKnightCloud")   <- start with THIS one (same bytes back)');
     log('[*]         writeSnapFile("<uniqueName>", "<path-on-device>")');
     log('[*]         writeStatus() | blockWritesOn()/Off() | passiveOn(3) | status()');
@@ -1045,5 +1113,6 @@ rpc.exports = {
   blockWritesOff: blockWritesOff,
   passiveOn: passiveOn,
   passiveOff: passiveOff,
-  status: status
+  status: status,
+  findIds: findIds
 };

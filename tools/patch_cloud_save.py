@@ -18,8 +18,10 @@ Usage:
       --set gameData.lastGems=1124375 \
       --set gameData.varGems=0
 
+  --set-str PATH=VALUE : set a string value WITHOUT JSON quoting (equivalent
+                 to --set PATH='"VALUE"' but without shell-quoting pain)
   --json-if-utf8 : treat input as UTF-8 JSON file instead of UTF-16LE bin
-Values are parsed as JSON literals: numbers, true/false/null, "strings".
+--set values are parsed as JSON literals: numbers, true/false/null, "strings".
 """
 import argparse
 import json
@@ -73,6 +75,8 @@ def main():
     ap.add_argument('infile')
     ap.add_argument('outfile')
     ap.add_argument('--set', action='append', default=[], metavar='PATH=VALUE')
+    ap.add_argument('--set-str', dest='set_str', action='append', default=[],
+                    metavar='PATH=VALUE')
     ap.add_argument('--json-if-utf8', action='store_true')
     args = ap.parse_args()
 
@@ -86,6 +90,13 @@ def main():
         v = parse_value(val)
         assign(obj, path, v)
         print(f'[+] set {path} = {v!r}')
+
+    for pair in args.set_str:
+        if '=' not in pair:
+            sys.exit(f'[!] --set-str expects PATH=VALUE, got {pair!r}')
+        path, _, val = pair.partition('=')
+        assign(obj, path, val)
+        print(f'[+] set-str {path} = {val!r}')
 
     text = json.dumps(obj, ensure_ascii=True, separators=(',', ':'))
     data = text.encode('utf-16-le')

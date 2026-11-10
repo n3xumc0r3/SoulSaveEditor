@@ -135,6 +135,39 @@ VERIFY OK → **COMMIT OK ×2** (1794343747132, 1794343762167), свежий
 LastModifiedTimestamp подтверждён `listNow()`. Осталось: контрольная загрузка
 в игре (см. §6).
 
+### Третья сессия (11.11.2026): проверка владельца — `cloudSaveId`
+
+При попытке загрузить облачный сейв на эмуляторе игра отказывает:
+«Не удалось загрузить сохранение: Старое сохранение относится к
+GPV2_235288940, его нельзя загрузить». Сейв несёт `cloudSaveId`
+телефон-аккаунта (см. §2), а эмуляторная установка ждёт свой собственный id —
+проверка владения на стороне клиента. Сработала именно сейчас, потому что
+наши коммиты сделали облако самым свежим — эмулятор впервые попытался его
+подтянуть.
+
+План обхода (id подменяем в самом сейве):
+
+1. Найти ожидаемый id: `findIds()` в REPL (v3.3.4) — скан rw-памяти на
+   UTF-16LE/ASCII строки `GPV2_*` (в Unity IL2CPP это mono-строки, НЕ
+   java.lang.String). Запускать при открытом диалоге ошибки или главном меню.
+   Ожидаемый id — одиночная строка `GPV2_...`, ОТЛИЧНАЯ от id из текста
+   ошибки; хит вида `{"serialzedVersion"...` — сам буфер сейва.
+2. Запасной путь: расшифровать ЛОКАЛЬНЫЙ сейв эмулятора
+   (`tools/sk870_decrypt_all.py`) и взять `cloudSaveId` оттуда (заодно
+   глянуть `platformId` — UUID).
+3. Запатчить ту версию, которая сейчас в облаке (gems=1000, `094216e9…`;
+   сверить LMT через `listNow()` — 1794343762167):
+   `python patch_cloud_save.py cloud_patched.bin cloud_patched_id.bin --set-str cloudSaveId=GPV2_<ожидаемый>`
+4. Залить коротким именем без точек (грабли №4):
+   `adb push cloud_patched_id.bin /sdcard/Android/data/com.ChillyRoom.DungeonShooter/files/skdump/cpid1`
+   → `writeSnapFile('SoulKnightCloud', '.../cpid1')` → `listNow()`.
+5. force-stop → рестарт → проверить загрузку.
+
+Предостережения: меняем ОДНО поле за раз (`platformId` — только если ошибка
+останется); после подмены id ТЕЛЕФОН может отказаться грузить этот сейв
+(зеркальная проверка) — id сцепляет сейв с одним устройством; откат —
+заливка `cloud_patched.bin` (`094216e9…`).
+
 ### Грабли (зафиксированы прогоном)
 
 1. **`getClass().getName()` на типизированных обёртках не вызывается** в этой
@@ -160,6 +193,10 @@ LastModifiedTimestamp подтверждён `listNow()`. Осталось: ко
    отвязанный Activity — `getExternalFilesDir` падает NPE и убивает всю
    fallback-цепочку дампов (на коммит не влияет). v3.3.3 берёт каталоги
    из Application (`ActivityThread.currentApplication()`) в первую очередь.
+6. **Проверка владельца**: игра грузит облачный сейв только при совпадении
+   `cloudSaveId` внутри JSON с ожидаемым на устройстве — иначе
+   «Старое сохранение относится к GPV2_..., его нельзя загрузить».
+   Обход и инструменты — см. «Третья сессия» выше.
 
 ### Рецепт реальной правки (сейф-процедура)
 
@@ -194,8 +231,8 @@ listNow()   // свежий LastModifiedTimestamp = запись принята
 | Файл | Назначение |
 |---|---|
 | `tools/frida_sk_snapshot_dump.js` | v3.2: listNow / readSnap / passiveOn / blockWritesOn |
-| `tools/frida_sk_snapshot_write.js` | v3.3.3: WRITE-путь — writeSnapNoop / writeSnapFile (S1, verify, commit, listDeviceDir) |
-| `tools/patch_cloud_save.py` | патчер облачного JSON: UTF-16LE → `--set PATH=VALUE` → UTF-16LE (typo-guard на ключи) |
+| `tools/frida_sk_snapshot_write.js` | v3.3.4: WRITE-путь — writeSnapNoop / writeSnapFile (S1, verify, commit, listDeviceDir) + findIds |
+| `tools/patch_cloud_save.py` | патчер облачного JSON: UTF-16LE → `--set PATH=VALUE` / `--set-str PATH=VALUE` → UTF-16LE (typo-guard на ключи) |
 | `tools/sk870_decrypt_all.py` | расшифровка ЛОКАЛЬНЫХ сейвов (поли XOR / polyxor) |
 | `tools/analyze_cloud_dump.py` | UTF-16LE → UTF-8, обзор секций дампа |
 | `tools/drill_cloud_save.py` | точечный дрилл значений (леджер, герои, инвентарь) |
@@ -211,7 +248,10 @@ listNow()   // свежий LastModifiedTimestamp = запись принята
       дампе даёт валидный UTF-16LE JSON (`7b 00 22 00`).
 - [x] Первая реальная правка на согласованном леджере закоммичена в облако
       11.11.2026 (gems = lastGems = 1000, varGems = 0; VERIFY+COMMIT OK ×2).
-- [ ] Контрольная загрузка в игре: force-stop → рестарт → 1000 алмазов,
-      сейв цел (загрузился, инвентарь/герои на месте).
+- [ ] Контрольная загрузка на эмуляторе: сначала подменить `cloudSaveId`
+      (см. «Третья сессия» §4) → force-stop → рестарт → сейв загрузился,
+      1000 алмазов, инвентарь/герои на месте.
+- [ ] Проверить обратную сторону: после подмены id телефон может отказаться
+      грузить сейв (зеркальная проверка владельца).
 - [ ] Определить, возвращает ли `Err/Banned` при записи в **новое** облако
       ChillyRoom (отдельно от GPGS).
