@@ -381,6 +381,19 @@ python tools\sk_save_editor.py push
   регистр bool различается), кэш леджера гемов, флаги `has_*_data` по секциям.
 * Правка prefs — `tools/sk_prefs.py` (хирургические правки, бэкап, round-trip).
 
+### 6.3. Где основные секции (вывод из profile.zip, 12.11.2026)
+
+Повторный pull реального устройства дал во **внешнем**
+`Android/data/.../files/` только `statistic.data`, `monsrise_data_<acc>_.data.new`
+(атомарный temp) и `bugly_last_us_up_tm`. Литералы метадаты
+(`/monsrise_data_`, `/item_data_`, суффикс `_<accountId>_`) и `has_*_data=1`
+при этом означают: остальные секции (`game_data_<acc>_.data`,
+`item_data_<acc>_.data`, …) лежат во **внутреннем** `/data/data/<pkg>/files/`
+и/или ещё не сброшены на диск после cloud-download (`download_save_count=2`,
+секции в памяти до очередного `SaveDataArray`). Достаёт только root-pull (§6.1);
+чтобы форсировать флеш — зайти в игру, подёргать меню/прогресс, выйти ЧЕРЕЗ
+меню игры (graceful save), и только потом `pull --kill`.
+
 ## 7. Инструменты и статус
 
 | Артефакт | Что делает |
