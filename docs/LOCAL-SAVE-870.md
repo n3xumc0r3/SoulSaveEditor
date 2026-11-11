@@ -30,6 +30,45 @@
   (`0` / `false` / `null` / пустой список). Неизвестные (лишние) поля молча
   игнорируются. Подробности и следствия для редактора — §6.
 
+## 1.1. Подтверждение на реальных файлах устройства (11.11.2026) — v29-сборка эмулятора
+
+С устройства (LDPlayer, `Android/data/com.ChillyRoom.DungeonShooter/files/`) сняты
+живые сейвы (`device_saves.zip`) и прогнаны через нашу схему. Это первая
+**физическая** валидация (до этого всё было из метадаты v31 APK и редакторов):
+
+| Файл | Размер | Результат |
+|---|---|---|
+| `statistic.data` | 42 144 Б | **Расшифрован** Base64(DES/CBC, key `crst1`, IV `Ahbool\0\0`, PKCS5) → 30 727 Б JSON, **161 ключ верхнего уровня**. Все 161 — поля класса `StatisticData` (0 посторонних). Не-JSON поля класса: 2 события (`Handbook*RecordedEvent`), 2 static-константы (`PassHistoryMaxCount`, `MultiGameHistoryMaxCount`), `StatisticLoad`, `cy`, `_data` — ровно то, что и не должно сериализоваться |
+| `monsrise_data_235288966_.data.new` | 400 Б | **НЕ расшифровывается** ни одной легаси-схемой (DES crst1/iambo/Ahbool+abo123, XOR 15Б, poly-XOR PASSWORD, фиксированный Rijndael) — энтропия 7.994. Класс `MonsterRiseData` в v29-метадате устройства имеет `get_RijPath` ⇒ файл из **Rijndael-группы миграции**; ключ per-install в playerprefs (`DataRijndael128Key`/`DataRijndaelIV`) — нужен root-pull (см. §8) |
+| `bugly_last_us_up_tm` | 13 Б | timestamp телеметрии Bugly, не сейв |
+
+Факты, извлечённые из v29-метадаты **самого устройства** (54 307 520 Б, XOR-0x66-зоны,
+46 241 typeDef × 88Б, 376 499 методов × 36Б, 347 702 полей × 12Б):
+
+* Layout typeDef v29 подтверждён тайлингом: `fieldStart` i32@+32, `fieldCount` u16**@+68**
+  (не @+64!); диапазоны полей соседних классов стыкуются без щелей (22 974+168 = 23 142 =
+  `fieldStart` следующего typeDef). Секция `types` — пара №19 заголовка (31 пара с 0x08),
+  `fields` — №11, `methods` — №5, `parameters` — №10, `images` — №20 (193 сборки).
+* Полная карта файлов повторена на v29: литералы `/monsrise_data_`, `/item_data_` и т.д.
+  (суффикс `_<accountId>_`), флаги-префы `has_monsrise_data`, `has_pvp_data`, `hasEscapeRunSave`.
+* **`.data.new` — атомарная запись**: реальный файл `monsrise_data_235288966_.data.new` —
+  временный файл незавершённой записи (игра пишет в `.new`, затем rename). Редактору
+  сейвов такие файлы надо тоже подхватывать.
+* Группа Rijndael-миграции по v29-метадате (все имеют `get_RijPath`): **MonsterRiseData,
+  ItemData, PvpData, MiscData, TaskDatas, BattlePassSaveData, MallReloadData**;
+  литералы `.rij`, `rij_decrypt`, `rijndael`; канальный раскат `OpenRijTest_{accountId}` /
+  `SupportRijChannel` / `RijUserAutoOpenJsonTestIfSupport` (методы `SaveUtil`:
+  `TryOpenRijTest`, `DoOpenRijTest`, `CloseRijTest`, `DealRijAndJsonTest`).
+  `statistic.data` при этом остался на DES — раскат per-файл.
+* В реальном сейве присутствуют `$type`-поля (`RGScript.Data.Mall.MallConditionStatisticData`)
+  — **Newtonsoft.Json с именами типов** подтверждён на живом файле (не только по метадате).
+* Round-trip-правка на живом файле: `write _usedEmoji`, `add TodayActivityPlayTime 0→42`,
+  перешифровка DES, обратное чтение — ОК (бэкапы + sha256 в логе редактора).
+* Инструменты v29: `tools/sk870_v29_metadata_decode.py` (снятие XOR-зон + все строки),
+  `tools/sk870_v29_dump_class.py` (дамп класса по имени: поля+методы),
+  `tools/sk870_v29_extract_schema.py` (генератор `tools/sk870_v29_save_schema.json` —
+  карта 19 файлов → классы → поля).
+
 ## 2. Карта файлов: секция ↔ класс ↔ поля
 
 Литеральные имена файлов из метадаты (все с ведущим `/` — кладутся под
@@ -308,4 +347,5 @@ hand_cut_index, manual_change_hand_cut_index, buy_good_times, ...
 | `tools/sk870_save_classes.json` | выжимка полей 19 ключевых классов сейвов (в репо; редактор грузит её автоматически) |
 | `tools/sk_local_save.py` | легаси-крипто `.data`: XOR game.data, DES `crst1`/`iambo`, вытягивание `cloudSaveId` (совместим с редактором: расшифровывает его вывод) |
 | `tools/sk870_metadata_decode.py` / `sk870_metadata_dump.py` | снятие маски метадаты и дамп имён |
+| `tools/sk870_v29_*` | набор для метадаты **устройства** (v29): decode/dump/schema — факты §1.1 извлечены ими |
 | — | Rijndael-128/AES-256 путь: механика ясна (`SaveDataWithRijndael`, суффикс `.aes`, ключи из playerprefs `DataRijndael128Key`/`DataRijndaelIV`/`DataAES256Key`); **реализован в редакторе** как мульти-догадка (raw/b64 × CBC/ECB × ключи b64/hex/utf8/sha256) — точная схема подтвердится первым `pull` живого `.aes` (чеклист RE-NOTES §Чеклист) |
