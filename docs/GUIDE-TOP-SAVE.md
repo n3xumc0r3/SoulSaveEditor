@@ -123,6 +123,69 @@ python tools\sk_save_editor.py preset .\profile\files\game.data reborn-card --ye
 python tools\sk_save_editor.py preset .\profile\files\game.data currencies
 ```
 
+### 3.1. Полный набор для ПУСТОГО аккаунта (v1.2.0) — строго в этом порядке
+
+Уроки боевого прогона 12.11 (уровни героев/скины/материалы «не применились»):
+
+1. **Сейв = две половины** (`.data` + playerprefs). Уровни героев и скины игра
+   держит ещё и в prefs (`<UID>_cN_level`, `<UID>_cN_skinN`) — патч только
+   `game.data` даёт «все герои 1 уровня, скинов 0».
+2. **Rij-канал**: если `setting.data UseRijData=true` (или в prefs
+   `OpenRijTest_<UID>=1`), секции Rij-группы (item_data, monsrise, misc, pvp,
+   task, bp, mall_reload) читаются/пишутся через Rij-путь — правки обычных
+   `.data` ИГНОРИРУЮТСЯ («материалов 0» при заённых 499). Лечение — `rij-legacy`.
+3. **Копии секции**: правь обе сразу флагом `--all-copies` (легаси-`item_data.data`
+   + UID-`item_data_235288966_.data`) — какая из копий читается этой сборкой,
+   заранее не знает никто; `doctor` покажет расхождение.
+
+```bat
+:: 0) СВЕЖИЙ pull (профиль на диске мог устареть после последнего запуска игры)
+python tools\sk_save_editor.py pull -o .\profile --kill --adb "D:\LDPlayer\LDPlayer14\adb.exe"
+
+:: 1) Rij-канал ВЫКЛ (включи заново никогда не нужно; monsrise/misc сбросятся в дефолт)
+python tools\sk_save_editor.py preset .\profile\files\setting.data rij-legacy --yes
+
+:: 2) предметы в ОБЕ копии item_data (--all-copies)
+python tools\sk_save_editor.py preset .\profile\files\item_data_235288966_.data grant-all 499 --all-copies --yes
+python tools\sk_save_editor.py preset .\profile\files\item_data_235288966_.data fish-total 1999 --all-copies --yes
+python tools\sk_save_editor.py preset .\profile\files\item_data_235288966_.data grant-decor --all-copies --yes
+python tools\sk_save_editor.py preset .\profile\files\item_data_235288966_.data item-unlock --all-copies --yes
+
+:: 3) герои/скиллы/скины/питомцы/зал в game.data (создаёт записи с нуля)
+python tools\sk_save_editor.py preset .\profile\files\game.data unlock-heroes --yes
+python tools\sk_save_editor.py preset .\profile\files\game.data grant-heroes-levels 8 --yes
+python tools\sk_save_editor.py preset .\profile\files\game.data grant-skill-unlock --yes
+python tools\sk_save_editor.py preset .\profile\files\game.data grant-skins --yes
+python tools\sk_save_editor.py preset .\profile\files\game.data grant-pets --yes
+python tools\sk_save_editor.py preset .\profile\files\game.data grant-room-objects 5 --yes
+python tools\sk_save_editor.py preset .\profile\files\game.data gems 50000 --yes
+python tools\sk_save_editor.py preset .\profile\files\game.data fish-chips 1999 --yes
+python tools\sk_save_editor.py preset .\profile\files\game.data reborn-card --yes
+
+:: 4) счётчики «сыграйте в режиме уровня 3 раза» (гейты стендов/мастерской) — эксперимент
+python tools\sk_save_editor.py preset .\profile\files\statistic.data dungeon-times 5 --yes
+python tools\sk_save_editor.py preset .\profile\files\game.data room-unlock --yes
+```
+
+### 3.2. prefs-половина (v1.2.0: уровни и скины героев тоже здесь)
+
+```bat
+set PREFS=.\profile\shared_prefs\com.ChillyRoom.DungeonShooter.v2.playerprefs.xml
+
+python tools\sk_prefs.py gems %PREFS% 50000 --yes
+python tools\sk_prefs.py unlock-heroes %PREFS% --extend --yes
+python tools\sk_prefs.py unlock-levels 8 %PREFS% --extend --yes
+python tools\sk_prefs.py unlock-skins %PREFS% --yes
+python tools\sk_prefs.py unlock-skills %PREFS% --yes
+python tools\sk_prefs.py unlock-plants %PREFS% --extend --yes
+python tools\sk_prefs.py rij-off %PREFS% --yes
+python tools\sk_prefs.py set %PREFS% 235288966_room_level 9 --mirror --yes
+```
+
+Разведка (если что-то всё ещё закрыто — защитники/питомцы-уровни/оружейные скины):
+`python tools\sk_prefs.py find %PREFS% follower` (и `pet`, `skin`, `stand`) —
+поиск по ключам и декодированным значениям; вывод — в репорт.
+
 Справка по всем пресетам: `python tools\sk_save_editor.py presets`.
 
 ## 4. Патчим prefs.xml (вторая половина сэйва)
@@ -253,3 +316,6 @@ python tools\sk_save_editor.py write .\profile\files\mall_reload_data_235288966_
 | В логе push было «владелец файлов восстановлен: uid 0» | Баг v1.0.1 (uid снимался с каталога ПОСЛЕ распаковки, когда тот уже стал root). Исправлено в v1.1.0: uid берётся до распаковки и вшивается в tar; вылечить старый прогон — `rescue` или повторный `push` новой версией |
 | playerprefs «UTF-8/ASCII» в `info`, а раньше был UTF-16 | На устройстве файл UTF-8; UTF-16LE+BOM — артефакт PowerShell-редиректа при ручном `adb shell ... > file`. Обе кодировки теперь читаются автоматически |
 | После push правки слетели | (а) игра была запущена при push — повтори с `--kill`; (б) игра подтянула облако — первый запуск офлайн (§6); (в) вручную удали `*.data.new`: `adb shell "su -c 'rm /data/data/com.ChillyRoom.DungeonShooter/files/*.data.new'"` и перезалей |
+| Материалы/рыба в item_data не появились в игре (хоть push сошёлся md5) | Классика 12.11: Rij-канал читает item_data мимо наших файлов. `doctor -p .\profile` покажет `UseRijData` и содержимое КАЖДОЙ копии прямо на устройстве. Лечение: `preset setting.data rij-legacy` + `sk_prefs.py rij-off` + пресеты item_data с `--all-copies` (§3.1) |
+| Герои открыты, но все 1 уровня; скинов 0 | Патчили только game.data — уровни и скины живут ещё и в prefs (`cN_level`, `cN_skinN`). Прогони §3.2: `unlock-levels 8 --extend` + `unlock-skins` + `grant-heroes-levels 8` + `grant-skins` |
+| doctor: «копии item_data РАСХОДЯТСЯ» | Правка легла только в одну копию секции — игра может читать другую. Все item_data-пресеты запускай с `--all-copies` |

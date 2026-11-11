@@ -63,7 +63,7 @@ except ImportError:  # pragma: no cover
     AES = DES = None
 
 PKG = "com.ChillyRoom.DungeonShooter"
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 # ---------------------------------------------------------------------------
 # 1. Крипто-константы (литералы из игры/метадаты, REVERSING.md §3.2, §4)
@@ -998,6 +998,43 @@ def _empty_account_hint():
             "    (аналогично grant-seeds 99, grant-blueprints, grant-all 499)")
 
 
+# Каталоги 8.7.0 для синтеза РАЗБЛОКИРОВОК на пустом аккаунте. Источник —
+# облачный дамп реального played-сейва аккаунта 235288966 (топ-сейв):
+# gameData.heroUnlock/heroLevel/petUnlock/skinLock/roomObjectLevel,
+# itemData.roomDecorateDic/itemUnlock. Ни одно имя/id не выдумано.
+_HEROES_870 = [
+    "Airbender", "Alchemist", "Assassin", "Beheaded", "Druid", "Elves",
+    "Engineer", "Envoy", "Knight", "Mage", "Miner", "Necromancer", "Ninja",
+    "Officer", "Paladin", "Priest", "Ranger", "Robot", "SpecialForces",
+    "Taoist", "Transcendent", "TrapMaster", "Vampire", "Viking", "Warlock",
+    "Werewolf",
+]
+_PETS_870 = [
+    "Bat", "Blagny", "Bug", "CanPig", "Cat", "Cat1", "Cat2", "Cat3", "Cat4",
+    "Cat5", "Cat6", "Corgi", "Dog", "Dog1", "Dog2", "Dog3", "Gugu", "Hide",
+    "Hippo", "LiangSir", "Owl", "Panda", "Pet4399", "Pig", "Pig1", "Pug",
+    "Rabbit", "Rabbit1", "Robot", "Seal", "Serenade", "Slime", "TapTap",
+    "Tengo", "Tortoise", "dragon",
+]
+# число скинов на героя = len(skinLock[hero]) в топ-сейве (Key 0..n-1);
+# Value=1 в топ-сейве всегда означает «открыт», прочие коды — замок/цена
+_SKIN_COUNTS_870 = {
+    "Airbender": 5, "Alchemist": 14, "Assassin": 18, "Beheaded": 1,
+    "Druid": 16, "Elves": 15, "Engineer": 18, "Envoy": 1, "Knight": 20,
+    "Mage": 18, "Miner": 4, "Necromancer": 12, "Ninja": 1, "Officer": 12,
+    "Paladin": 18, "Priest": 17, "Ranger": 19, "Robot": 16,
+    "SpecialForces": 1, "Taoist": 13, "Transcendent": 1, "TrapMaster": 3,
+    "Vampire": 15, "Viking": 19, "Warlock": 6, "Werewolf": 19,
+}
+_ROOM_OBJECTS_870 = ["Book", "CatFood", "Chest", "Planet", "Safe"]
+_ROOM_DECOR_870 = {
+    "ItemEggMachine": [0], "ItemTrashCan": [0], "ObjectBooks": [0],
+    "ObjectPlant": [0], "ObjectSafe": [0], "PetFood": [0],
+}
+_ITEM_UNLOCK_870 = ["plant_pot3", "plant_pot4", "plant_pot5", "plant_pot7",
+                    "Motorcycle"]
+
+
 @preset("research-all", "", "все известные чертежи -> Researched (itemData.blueprints)")
 def p_research(doc, a, opts):
     it = _gdoc(doc, "itemData")
@@ -1131,6 +1168,209 @@ def p_grant_all(doc, a, opts):
         if bp.get(bid) != defstate:
             changes.append(("itemData.blueprints[%s]" % bid, bp.get(bid, "<создан>"), defstate))
         bp[bid] = defstate
+    return changes
+
+
+# --- синтез разблокировок 1.2.0 (каталоги из топ-сейва, см. выше) ---
+def _known_heroes(gd):
+    """Каталог героев + все герои, уже присутствующие в сейве."""
+    out = set(_HEROES_870)
+    for fld in ("heroUnlock", "heroLevel", "heroSkillUnlock", "skinLock"):
+        v = gd.get(fld)
+        if isinstance(v, dict):
+            out |= set(v.keys())
+    return out
+
+
+@preset("grant-heroes-levels", "N", "уровни ВСЕХ героев каталога -> N (создаёт heroLevel с нуля; 1..8)")
+def p_grant_heroes_levels(doc, a, opts):
+    gd = _gdoc(doc, "gameData")
+    hl = gd.get("heroLevel")
+    if not isinstance(hl, dict):
+        hl = {}
+        gd["heroLevel"] = hl
+    n = max(1, min(8, int(a[0])))
+    changes = []
+    for h in sorted(_known_heroes(gd)):
+        if hl.get(h) != n:
+            changes.append(("gameData.heroLevel[%s]" % h, hl.get(h, "<создан>"), n))
+        hl[h] = n
+    return changes
+
+
+@preset("grant-skill-unlock", "", "открыть все 3 скилла всех героев (heroSkillUnlock[hero] = [{Key:0..2, Value:true}])")
+def p_grant_skill_unlock(doc, a, opts):
+    gd = _gdoc(doc, "gameData")
+    su = gd.get("heroSkillUnlock")
+    if not isinstance(su, dict):
+        su = {}
+        gd["heroSkillUnlock"] = su
+    want = [{"Key": i, "Value": True} for i in range(3)]
+    changes = []
+    for h in sorted(_known_heroes(gd)):
+        cur = su.get(h)
+        cur_norm = ([(e.get("Key"), e.get("Value")) for e in cur if isinstance(e, dict)]
+                    if isinstance(cur, list) else None)
+        if cur_norm != [(0, True), (1, True), (2, True)]:
+            changes.append(("gameData.heroSkillUnlock[%s]" % h,
+                            "<создан>" if cur is None else cur, want))
+        su[h] = json.loads(json.dumps(want))
+    return changes
+
+
+@preset("grant-skins", "", "открыть все скины всех героев: skinLock[hero] = [{Key:i, Value:1}] по каталогу топ-сейва; существующие Value != 1 -> 1")
+def p_grant_skins(doc, a, opts):
+    gd = _gdoc(doc, "gameData")
+    sl = gd.get("skinLock")
+    if not isinstance(sl, dict):
+        sl = {}
+        gd["skinLock"] = sl
+    changes = []
+    for h in sorted(set(_SKIN_COUNTS_870) | set(sl.keys())):
+        n = _SKIN_COUNTS_870.get(h)
+        cur = sl.get(h)
+        if isinstance(cur, list) and cur:
+            for e in cur:
+                if isinstance(e, dict) and e.get("Value") != 1:
+                    changes.append(("gameData.skinLock[%s][Key %s].Value" % (h, e.get("Key")),
+                                    e.get("Value"), 1))
+                    e["Value"] = 1
+            if n is not None:
+                have = {e.get("Key") for e in cur if isinstance(e, dict)}
+                for i in range(n):
+                    if i not in have:
+                        cur.append({"Key": i, "Value": 1})
+                        changes.append(("gameData.skinLock[%s][%d]" % (h, i), "<создан>", 1))
+            continue
+        if n is None:
+            continue
+        want = [{"Key": i, "Value": 1} for i in range(n)]
+        changes.append(("gameData.skinLock[%s]" % h, "<создан>" if cur is None else cur,
+                        "%d скинов Value=1" % n))
+        sl[h] = want
+    return changes
+
+
+@preset("grant-pets", "", "открыть всех питомцев каталога (36, создаёт petUnlock с нуля)")
+def p_grant_pets(doc, a, opts):
+    gd = _gdoc(doc, "gameData")
+    pu = gd.get("petUnlock")
+    if not isinstance(pu, dict):
+        pu = {}
+        gd["petUnlock"] = pu
+    changes = []
+    for pet in _PETS_870:
+        if pu.get(pet) is not True:
+            changes.append(("gameData.petUnlock[%s]" % pet, pu.get(pet, "<создан>"), True))
+        pu[pet] = True
+    return changes
+
+
+@preset("grant-room-objects", "N", "уровни объектов зала (Book/CatFood/Chest/Planet/Safe) -> N (1..5)")
+def p_grant_room_objects(doc, a, opts):
+    gd = _gdoc(doc, "gameData")
+    ro = gd.get("roomObjectLevel")
+    if not isinstance(ro, dict):
+        ro = {}
+        gd["roomObjectLevel"] = ro
+    n = max(1, min(5, int(a[0])))
+    changes = []
+    for o in _ROOM_OBJECTS_870:
+        if ro.get(o) != n:
+            changes.append(("gameData.roomObjectLevel[%s]" % o, ro.get(o, "<создан>"), n))
+        ro[o] = n
+    return changes
+
+
+@preset("room-unlock", "", "gameData.hasTutorial=1 — зал считает обучение пройденным (эксперимент: гейт мастерской/стендов)", experimental=True)
+def p_room_unlock(doc, a, opts):
+    gd = _gdoc(doc, "gameData")
+    old = gd.get("hasTutorial")
+    gd["hasTutorial"] = 1
+    return [("gameData.hasTutorial", old, 1)]
+
+
+# --- item_data: рыба/декор/itemUnlock (каталоги из топ-сейва) ---
+@preset("fish-total", "N", "itemData.cumulativeFishCount = max(old, N) — счётчик ВСЕЙ купленной сушёной рыбы (двигает подарочную дорожку)")
+def p_fish_total(doc, a, opts):
+    it = _gdoc(doc, "itemData")
+    n = int(a[0])
+    old = it.get("cumulativeFishCount") or 0
+    new = max(old, n)
+    it["cumulativeFishCount"] = new
+    return [("itemData.cumulativeFishCount", old, new)]
+
+
+@preset("grant-decor", "", "украшения зала: itemData.roomDecorateDic = {ObjectBooks/ObjectSafe/ObjectPlant/ItemEggMachine/ItemTrashCan/PetFood: [0]}")
+def p_grant_decor(doc, a, opts):
+    it = _gdoc(doc, "itemData")
+    rd = it.get("roomDecorateDic")
+    if not isinstance(rd, dict):
+        rd = {}
+        it["roomDecorateDic"] = rd
+    changes = []
+    for did, skins in _ROOM_DECOR_870.items():
+        if rd.get(did) != skins:
+            changes.append(("itemData.roomDecorateDic[%s]" % did, rd.get(did, "<создан>"), skins))
+        rd[did] = list(skins)
+    return changes
+
+
+@preset("item-unlock", "", "itemData.itemUnlock += горшки plant_pot3/4/5/7 + Motorcycle (id из топ-сейва)")
+def p_item_unlock(doc, a, opts):
+    it = _gdoc(doc, "itemData")
+    iu = it.get("itemUnlock")
+    if not isinstance(iu, list):
+        iu = []
+        it["itemUnlock"] = iu
+    changes = []
+    for iid in _ITEM_UNLOCK_870:
+        if iid not in iu:
+            iu.append(iid)
+            changes.append(("itemData.itemUnlock += %s" % iid, "<нет>", iid))
+    return changes
+
+
+# --- прочие секции ---
+@preset("rij-legacy", "", "settingData.UseRijData=false: секции Rij-группы (item_data, monsrise, misc, pvp, task, bp, mall_reload) читать/писать легаси-.data, а не .rijndael — без этого правки item_data игнорируются, если канал включён")
+def p_rij_legacy(doc, a, opts):
+    if doc.cls != "SettingData":
+        raise RuntimeError("rij-legacy — пресет для setting.data (класс SettingData), а тут %s" % (doc.cls or "?"))
+    old = doc.obj.get("UseRijData")
+    doc.obj["UseRijData"] = False
+    if old:
+        print("[!] UseRijData был ВКЛЮЧЁН (%r) — вот почему правки item_data могли "
+              "игнорироваться: игра читала/писала Rij-путь (.rijndael/.data.new), а не "
+              "наши .data. Теперь Rij-группа читается из обычных .data." % old)
+        print("[!] выключи канал и в prefs: python sk_prefs.py rij-off <prefs.xml> --yes")
+        print("[!] monsrise/misc/task/bp/mall сбросятся в дефолт (на пустом аккаунте там нечего терять)")
+    return [("settingData.UseRijData", old, False)]
+
+
+@preset("dungeon-times", "N", "statistic: LevelGameStatisticData _enter/_finishDungeonTimes и _finishLevelTimes = {герой: N} — счётчики «сыграйте в режиме уровня N раз» (гейты стендов/мастерской)", experimental=True)
+def p_dungeon_times(doc, a, opts):
+    if doc.cls != "StatisticData":
+        raise RuntimeError("dungeon-times — пресет для statistic.data (класс StatisticData), а тут %s" % (doc.cls or "?"))
+    st = doc.obj.get("StatisticsData")
+    if not isinstance(st, dict):
+        st = {}
+        doc.obj["StatisticsData"] = st
+    lg = st.get("LevelGameStatisticData")
+    if not isinstance(lg, dict):
+        lg = {}
+        st["LevelGameStatisticData"] = lg
+    n = max(1, int(a[0]))
+    changes = []
+    for fld in ("_enterDungeonTimes", "_finishDungeonTimes", "_finishLevelTimes"):
+        d = lg.get(fld)
+        if not isinstance(d, dict):
+            d = {}
+            lg[fld] = d
+        for h in _HEROES_870:
+            if d.get(h) != n:
+                changes.append(("StatisticsData.LevelGameStatisticData.%s[%s]" % (fld, h),
+                                d.get(h, "<создан>"), n))
+            d[h] = n
     return changes
 
 
@@ -1637,7 +1877,7 @@ def cmd_rescue(args):
     print("[ok] восстановлено из %s (uid %d восстановлен)" % (pick, app_uid))
     print("[i] ПЕРВЫЙ ЗАПУСК — ОФЛАЙН (авиарежим/сеть выключена): иначе игра может "
           "подтянуть облако поверх отката")
-    print("[i] если игра снова висит на 100%% уже на ЭТОМ состоянии — проблема не в правках, "
+    print("[i] если игра снова висит на 100% уже на ЭТОМ состоянии — проблема не в правках, "
           "а в окружении (сеть/Google-аккаунт); разбирайся с doctor: "
           "python sk_save_editor.py doctor -p <профиль>")
     return 0
@@ -1661,6 +1901,7 @@ def cmd_doctor(args):
     app_uid = _app_uid(adb_path, root)
     print("[i] uid приложения: %d" % app_uid)
     problems = []
+    _copy_state = {}  # item_data копии -> (materials, blueprints, seeds)
 
     def ls_stat(sub):
         out = device_sh(adb_path, root, "ls -ln /data/data/%s/%s" % (PKG, sub)
@@ -1744,6 +1985,11 @@ def cmd_doctor(args):
                 sd = d.obj if d.mode == "section" else (d.obj.get(sect) or {})
                 vals = {k: sd.get(k) for k in fields}
                 print("[i] %s: %s" % (rel, vals))
+                if sect == "settingData" and vals.get("UseRijData"):
+                    problems.append(
+                        "setting.data: UseRijData=%r — Rij-канал ВКЛЮЧЁН: item_data/monsrise/misc/task/bp/mall "
+                        "читаются из .rijndael/.data.new, и правки обычных .data ИГНОРИРУЮТСЯ. "
+                        "Лечение: preset files/setting.data rij-legacy + sk_prefs.py rij-off" % vals.get("UseRijData"))
             except Exception as e:
                 print("[!] %s не читается: %s" % (rel, e))
         for fn in sorted(os.listdir(os.path.join(prof, "files"))):
@@ -1753,8 +1999,53 @@ def cmd_doctor(args):
                     it = d.obj if d.mode == "section" else (d.obj.get("itemData") or {})
                     m, b, s = it.get("materials") or {}, it.get("blueprints") or {}, it.get("seeds") or {}
                     print("[i] %s: materials=%d blueprints=%d seeds=%d" % (fn, len(m), len(b), len(s)))
+                    _copy_state[fn] = (len(m), len(b), len(s))
                 except Exception as e:
                     print("[!] %s не читается: %s" % (fn, e))
+        # расхождение копий секции item_data: правили только одну -> игра видит пустую
+        if len(_copy_state) > 1 and len(set(_copy_state.values())) > 1:
+            problems.append(
+                "копии item_data РАСХОДЯТСЯ (%s) — игра читает только одну из них; "
+                "прогони пресеты с --all-copies, чтобы правка легла в обе"
+                % "; ".join("%s: mat=%d bp=%d" % (fn, v[0], v[1]) for fn, v in _copy_state.items()))
+
+    # живое состояние НА УСТРОЙСТВЕ: расшифровываем ключевые .data прямо там —
+    # видно, какую копию секции игра реально перезаписала и что в ней сейчас
+    try:
+        names = device_list_files(adb_path, root, "/data/data/%s/files" % PKG)
+        base_names = [n.rsplit("/", 1)[-1] for n in names]
+        hits = [n for n in base_names
+                if re.match(r"^(game|item_data|setting|statistic)(_|\.).*\.data$", n)]
+        pets = [n for n in base_names
+                if re.search(r"follower|pet|room_", n, re.I) and n.endswith((".data", ".data.new"))]
+        if pets:
+            print("[i] на устройстве есть файлы follower/pet/room_: %s" % ", ".join(sorted(pets)))
+        for name in sorted(hits):
+            try:
+                raw = device_read_file(adb_path, root, "/data/data/%s/files/%s" % (PKG, name),
+                                       timeout=120)
+                kind, obj, codec, note = decode_any(raw, name, {})
+                if not isinstance(obj, dict):
+                    print("[i] устройство files/%s: kind=%s (%s)" % (name, kind, note))
+                    continue
+                sec = parse_save_name(name)["name"]
+                if sec == "item_data":
+                    print("[i] устройство files/%s: materials=%d blueprints=%d seeds=%d fish=%s" % (
+                        name, len(obj.get("materials") or {}), len(obj.get("blueprints") or {}),
+                        len(obj.get("seeds") or {}), obj.get("cumulativeFishCount")))
+                elif sec == "game":
+                    hu = obj.get("heroUnlock") or {}
+                    print("[i] устройство files/%s: gems=%s heroUnlock=%d/%d heroLevel=%d skinLock=%d skillUnlock=%d" % (
+                        name, obj.get("gems"), sum(1 for v in hu.values() if v is True), len(hu),
+                        len(obj.get("heroLevel") or {}), len(obj.get("skinLock") or {}),
+                        len(obj.get("heroSkillUnlock") or {})))
+                elif sec == "setting":
+                    print("[i] устройство files/%s: UseRijData=%s UseNewtonJsonData=%s" % (
+                        name, obj.get("UseRijData"), obj.get("UseNewtonJsonData")))
+            except Exception as e:
+                print("[!] устройство files/%s: %s" % (name, e))
+    except Exception as e:
+        print("[!] device-side разбор не удался: %s" % e)
     print()
     if problems:
         print("DOCTOR: %d проблем(ы):" % len(problems))
@@ -1941,6 +2232,82 @@ def cmd_selftest(args):
           d2.uid == f2.uid == 10123 and d2.mode == 0o771 and f2.mode == 0o660
           and d2.gid == 10123)
 
+    # --- 12) grant-разблокировки 1.2.0 на ПУСТОМ game.data ---
+    g2dir = os.path.join(tmp, "g2")
+    os.makedirs(g2dir, exist_ok=True)
+    fgame2 = os.path.join(g2dir, "game.data")
+    with open(fgame2, "wb") as f:
+        f.write(encode_any({"gems": 0}, "utf8", "xor", prefs))
+    dg = load_doc(fgame2)
+    run_preset(dg, "grant-heroes-levels", ["8"], {})
+    run_preset(dg, "grant-skill-unlock", [], {})
+    run_preset(dg, "grant-skins", [], {})
+    run_preset(dg, "grant-pets", [], {})
+    run_preset(dg, "grant-room-objects", ["5"], {})
+    check("grant-heroes-levels: все герои = 8",
+          len(dg.obj["heroLevel"]) == len(_HEROES_870)
+          and all(v == 8 for v in dg.obj["heroLevel"].values()),
+          "%d героев" % len(dg.obj["heroLevel"]))
+    check("grant-skill-unlock: 3 скилла/герой",
+          len(dg.obj["heroSkillUnlock"]) == len(_HEROES_870)
+          and all([(e["Key"], e["Value"]) for e in v] == [(0, True), (1, True), (2, True)]
+                  for v in dg.obj["heroSkillUnlock"].values()))
+    check("grant-skins: все Value=1",
+          len(dg.obj["skinLock"]) == len(_SKIN_COUNTS_870)
+          and all(e["Value"] == 1 for lst in dg.obj["skinLock"].values() for e in lst)
+          and len(dg.obj["skinLock"]["Knight"]) == 20)
+    check("grant-pets: 36 питомцев", len(dg.obj["petUnlock"]) == len(_PETS_870))
+    check("grant-room-objects: 5 объектов", all(v == 5 for v in dg.obj["roomObjectLevel"].values()))
+    save_doc(dg, verify=True)
+    dg2 = load_doc(fgame2)
+    check("grant-разблокировки round-trip",
+          dg2.obj["heroLevel"] == dg.obj["heroLevel"] and dg2.obj["skinLock"] == dg.obj["skinLock"])
+    # grant-skins поверх существующих замков: Value != 1 -> 1
+    dg.obj["skinLock"]["Knight"][0]["Value"] = -8
+    ch = run_preset(dg, "grant-skins", [], {})
+    check("grant-skins чинит существующие замки",
+          dg.obj["skinLock"]["Knight"][0]["Value"] == 1 and ch)
+
+    # --- 13) fish-total / grant-decor / item-unlock / rij-legacy / dungeon-times ---
+    run_preset(d_it, "fish-total", ["1999"], {})
+    check("fish-total: cumulativeFishCount", d_it.obj.get("cumulativeFishCount") == 1999)
+    run_preset(d_it, "grant-decor", [], {})
+    check("grant-decor: 6 объектов зала", len(d_it.obj["roomDecorateDic"]) == len(_ROOM_DECOR_870))
+    run_preset(d_it, "item-unlock", [], {})
+    check("item-unlock: горшки+мотоцикл",
+          all(i in d_it.obj["itemUnlock"] for i in _ITEM_UNLOCK_870))
+    fset = os.path.join(tmp, "setting.data")
+    with open(fset, "wb") as f:
+        f.write(encode_any({"UseRijData": True, "UseNewtonJsonData": True, "MaxLevel": 3},
+                           "utf8", "des-default", prefs))
+    dset = load_doc(fset)
+    check("setting класс", dset.cls == "SettingData", str(dset.cls))
+    run_preset(dset, "rij-legacy", [], {})
+    check("rij-legacy: UseRijData=false", dset.obj["UseRijData"] is False)
+    save_doc(dset, verify=True)
+    fst = os.path.join(tmp, "statistic.data")
+    with open(fst, "wb") as f:
+        f.write(encode_any({"StatisticsData": {"LevelGameStatisticData": {
+            "_enterDungeonTimes": {}, "$type": "GameStatisticSystem.LevelGameStatisticData"}}},
+            "utf8", "des-statistic", prefs))
+    dst_ = load_doc(fst)
+    run_preset(dst_, "dungeon-times", ["5"], {})
+    lg = dst_.obj["StatisticsData"]["LevelGameStatisticData"]
+    check("dungeon-times: счётчики по героям",
+          all(lg[f][h] == 5 for f in ("_enterDungeonTimes", "_finishDungeonTimes", "_finishLevelTimes")
+              for h in _HEROES_870))
+    save_doc(dst_, verify=True)
+
+    # --- 14) --all-copies: находим обе копии item_data ---
+    sibs = _section_siblings(fitem)  # fitem = <tmp>/item_data.data
+    check("--all-copies: копий вне tmp нет", sibs == [], str(sibs))
+    fitem_uid = os.path.join(tmp, "item_data_235288966_.data")
+    with open(fitem_uid, "wb") as f:
+        f.write(encode_any({"materials": {}, "blueprints": {}, "seeds": {}}, "utf8", "des-default", prefs))
+    sibs2 = _section_siblings(fitem_uid)
+    check("--all-copies: sibling найден",
+          [os.path.basename(s) for s in sibs2] == ["item_data.data"], str(sibs2))
+
     shutil.rmtree(tmp, ignore_errors=True)
     print()
     if fails:
@@ -2050,24 +2417,58 @@ def cmd_show(args):
     return 0
 
 
+def _section_siblings(path):
+    """Другие копии той же секции в каталоге (для --all-copies): item_data.data
+    + item_data_<acc>_.data — правятся одинаково, т.к. неизвестно, какую копию
+    читает конкретная сборка. Временные/бэкапы не участвуют."""
+    d = os.path.dirname(os.path.abspath(path)) or "."
+    own = parse_save_name(path)["name"].lower()
+    own_base = os.path.basename(path)
+    out = []
+    try:
+        names = sorted(os.listdir(d))
+    except OSError:
+        return out
+    for fn in names:
+        if fn == own_base or ".bak_" in fn or fn.endswith(".data.new") \
+                or fn == "_sk_push.tar" or fn.endswith(".tmp"):
+            continue
+        if not fn.lower().endswith(SAVE_SUFFIXES):
+            continue
+        if parse_save_name(fn)["name"].lower() == own:
+            out.append(os.path.join(d, fn))
+    return out
+
+
 def _mutator_cmd(args, apply_fn, desc):
     prefs_xml = args.prefs or autodetect_prefs(args.file)
-    doc = load_doc(args.file, prefs_xml)
-    changes = apply_fn(doc)
-    if not changes:
-        print("[i] изменений нет (%s)" % desc)
-        return 0
-    print("Планируемые правки (%s):" % desc)
-    print_changes(changes)
-    if args.dry_run:
-        print("[dry-run] ничего не записано")
-        return 0
-    if not confirm("Применить к %s?" % args.file, args.yes):
-        print("отменено")
-        return 1
-    backup_path = save_doc(doc, args.backup_dir)
-    new_sha = hashlib.sha256(open(args.file, "rb").read()).hexdigest()
-    print("[ok] записано; бэкап: %s; sha256: %s" % (backup_path, new_sha[:16]))
+    docs = [(args.file, load_doc(args.file, prefs_xml))]
+    if getattr(args, "all_copies", False):
+        for sp in _section_siblings(args.file):
+            try:
+                docs.append((sp, load_doc(sp, prefs_xml)))
+            except Exception as e:
+                print("[!] %s пропущен (%s)" % (os.path.basename(sp), e))
+        if len(docs) > 1:
+            print("[i] --all-copies: цели %s" % ", ".join(os.path.basename(p) for p, _ in docs))
+    applied = 0
+    for path, doc in docs:
+        changes = apply_fn(doc)
+        if not changes:
+            print("[i] изменений нет (%s) в %s" % (desc, os.path.basename(path)))
+            continue
+        print("Планируемые правки (%s) -> %s:" % (desc, os.path.basename(path)))
+        print_changes(changes)
+        if args.dry_run:
+            print("[dry-run] ничего не записано")
+            continue
+        if not confirm("Применить к %s?" % path, args.yes):
+            print("отменено")
+            return 1
+        backup_path = save_doc(doc, args.backup_dir)
+        new_sha = hashlib.sha256(open(path, "rb").read()).hexdigest()
+        print("[ok] записано; бэкап: %s; sha256: %s" % (backup_path, new_sha[:16]))
+        applied += 1
     return 0
 
 
@@ -2228,6 +2629,8 @@ def main(argv=None):
                         help="каталог для бэкапов (по умолчанию рядом с файлом)")
     common.add_argument("--force-id", action="store_true", default=argparse.SUPPRESS,
                         help="разрешить правку cloudSaveId/platformId/ChillyUid/serialzedVersion")
+    common.add_argument("--all-copies", action="store_true", default=argparse.SUPPRESS,
+                        help="применить правку ко ВСЕМ копиям секции (item_data.data + item_data_<acc>_.data)")
 
     ap = argparse.ArgumentParser(
         prog="sk_save_editor.py",
@@ -2251,6 +2654,8 @@ def main(argv=None):
     ap.add_argument("--backup-dir", help="каталог для бэкапов (по умолчанию рядом с файлом)")
     ap.add_argument("--force-id", action="store_true",
                     help="разрешить правку cloudSaveId/platformId/ChillyUid/serialzedVersion")
+    ap.add_argument("--all-copies", action="store_true",
+                    help="править все копии секции (для item_data: и легаси-, и UID-файл)")
     sub = ap.add_subparsers(dest="cmd")
 
     sp = sub.add_parser("info", parents=[common], help="форматы файлов")

@@ -462,6 +462,201 @@ def cmd_unlock_skills(a):
     edit_keys(a.prefs, ops, yes=a.yes)
 
 
+def cmd_unlock_levels(a):
+    """Уровни героев в prefs: <UID>_cN_level и LOCALcN_level -> N.
+    Без --extend правятся только существующие ключи; с --extend создаются
+    для всех виденных cN (по cN_unlock/cN_level/cN_skinN)."""
+    text, bom, entries = iter_all(a.prefs)
+    uid = detect_uid(entries)
+    if not uid:
+        sys.exit(" accountId не найден")
+    ops = []
+    for name in sorted(entries):
+        if re.fullmatch(rf"{uid}_c\d+_level", name):
+            ops.append((name, str(a.n), "int"))
+        elif re.fullmatch(r"LOCALc\d+_level", name):
+            ops.append((name, str(a.n), "int"))
+    if a.extend:
+        ids = sorted({int(g) for k in entries
+                      for g in re.findall(r"c(\d+)_(?:unlock|level|skin\d+)$", k)})
+        for i in ids:
+            for key in (f"{uid}_c{i}_level", f"LOCALc{i}_level"):
+                if key not in entries:
+                    ops.append((key, str(a.n), "int"))
+    if not ops:
+        print("ключей *_cN_level не найдено (попробуй --extend)")
+        return
+    print(f"[i] будет выставлено {len(ops)} ключей уровней в {a.n}")
+    edit_keys(a.prefs, ops, yes=a.yes)
+    print("[!] синхронизируй и game.data:")
+    print(f"    python sk_save_editor.py preset <profile>/files/game.data grant-heroes-levels {a.n} --yes")
+
+
+def cmd_unlock_skins(a):
+    """Скины героев в prefs: <UID>_cN_skinM и LOCALcN_skinM -> 1 (код открытого
+    скина в skinLock/top-сейве; замки/цены — отрицательные и крупные значения)."""
+    text, bom, entries = iter_all(a.prefs)
+    uid = detect_uid(entries)
+    if not uid:
+        sys.exit(" accountId не найден")
+    rx_uid = re.compile(rf"{uid}_c\d+_skin\d+$")
+    rx_loc = re.compile(r"LOCALc\d+_skin\d+$")
+    ops = []
+    for name in sorted(entries):
+        if rx_uid.fullmatch(name) or rx_loc.fullmatch(name):
+            if entries[name]["value"] != str(a.value):
+                ops.append((name, str(a.value), "int"))
+    if not ops:
+        print("скины уже открыты (или ключей *_cN_skinM нет)")
+        return
+    print(f"[i] будет выставлено {len(ops)} ключей скинов в {a.value}")
+    edit_keys(a.prefs, ops, yes=a.yes)
+    print("[!] синхронизируй и game.data:")
+    print("    python sk_save_editor.py preset <profile>/files/game.data grant-skins --yes")
+
+
+def cmd_rij_off(a):
+    """Выключить Rij-канал в prefs: OpenRijTest_<UID> (+LOCAL-зеркало) -> 0.
+    Без этого игра может продолжать читать item_data мимо наших .data."""
+    text, bom, entries = iter_all(a.prefs)
+    uid = detect_uid(entries)
+    if not uid:
+        sys.exit(" accountId не найден")
+    ops = []
+    for name, e in sorted(entries.items()):
+        if re.fullmatch(rf"OpenRijTest_{uid}", name) or re.fullmatch(r"LOCALOpenRijTest", name) \
+                or re.fullmatch(rf"{uid}_OpenRijTest", name):
+            if e["value"] not in ("0", "false", "False"):
+                ops.append((name, "0", "int"))
+    if not ops:
+        print("[i] Rij-канал в prefs уже выключен (или флагов нет)")
+        return
+    for k, v, kind in ops:
+        print(f"  {k}: {entries[k]['value']!r} -> '0'")
+    edit_keys(a.prefs, ops, yes=a.yes)
+    print("[!] также выставь UseRijData=false в setting.data:")
+    print("    python sk_save_editor.py preset <profile>/files/setting.data rij-legacy --yes")
+
+
+def cmd_find(a):
+    """Поиск по ключам и ДЕКОДИРОВАННЫМ значениям prefs (без учёта регистра).
+    Для разведки: python3 sk_prefs.py find prefs.xml follower"""
+    text, bom, entries = iter_all(a.prefs)
+    q = a.substr.lower()
+    hits = 0
+    for name, e in sorted(entries.items()):
+        dec = try_decode(e["value"]) or ""
+        if q in name.lower() or q in dec.lower():
+            hits += 1
+            if hits > a.limit:
+                print("... (обрезано, увеличь --limit)")
+                break
+            shown = dec if len(dec) <= a.head else dec[:a.head] + "..."
+            print(f"{name}\n    [{e['kind']}] {shown}")
+    if not hits:
+        print("<не найдено>")
+    else:
+        print(f"\nнайдено: {hits}" + (" (ограничено)" if hits > a.limit else ""))
+
+
+def cmd_unlock_levels(a):
+    """Уровни героев в prefs: <UID>_cN_level и LOCALcN_level -> N.
+    Без --extend правятся только существующие ключи; с --extend создаются
+    для всех виденных cN (по cN_unlock/cN_level/cN_skinN)."""
+    text, bom, entries = iter_all(a.prefs)
+    uid = detect_uid(entries)
+    if not uid:
+        sys.exit(" accountId не найден")
+    ops = []
+    for name in sorted(entries):
+        if re.fullmatch(rf"{uid}_c\d+_level", name):
+            ops.append((name, str(a.n), "int"))
+        elif re.fullmatch(r"LOCALc\d+_level", name):
+            ops.append((name, str(a.n), "int"))
+    if a.extend:
+        ids = sorted({int(g) for k in entries
+                      for g in re.findall(r"c(\d+)_(?:unlock|level|skin\d+)$", k)})
+        for i in ids:
+            for key in (f"{uid}_c{i}_level", f"LOCALc{i}_level"):
+                if key not in entries:
+                    ops.append((key, str(a.n), "int"))
+    if not ops:
+        print("ключей *_cN_level не найдено (попробуй --extend)")
+        return
+    print(f"[i] будет выставлено {len(ops)} ключей уровней в {a.n}")
+    edit_keys(a.prefs, ops, yes=a.yes)
+    print("[!] синхронизируй и game.data:")
+    print(f"    python sk_save_editor.py preset <profile>/files/game.data grant-heroes-levels {a.n} --yes")
+
+
+def cmd_unlock_skins(a):
+    """Скины героев в prefs: <UID>_cN_skinM и LOCALcN_skinM -> 1 (код открытого
+    скина в skinLock/top-сейве; замки/цены — отрицательные и крупные значения)."""
+    text, bom, entries = iter_all(a.prefs)
+    uid = detect_uid(entries)
+    if not uid:
+        sys.exit(" accountId не найден")
+    rx_uid = re.compile(rf"{uid}_c\d+_skin\d+$")
+    rx_loc = re.compile(r"LOCALc\d+_skin\d+$")
+    ops = []
+    for name in sorted(entries):
+        if rx_uid.fullmatch(name) or rx_loc.fullmatch(name):
+            if entries[name]["value"] != str(a.value):
+                ops.append((name, str(a.value), "int"))
+    if not ops:
+        print("скины уже открыты (или ключей *_cN_skinM нет)")
+        return
+    print(f"[i] будет выставлено {len(ops)} ключей скинов в {a.value}")
+    edit_keys(a.prefs, ops, yes=a.yes)
+    print("[!] синхронизируй и game.data:")
+    print("    python sk_save_editor.py preset <profile>/files/game.data grant-skins --yes")
+
+
+def cmd_rij_off(a):
+    """Выключить Rij-канал в prefs: OpenRijTest_<UID> (+LOCAL-зеркало) -> 0.
+    Без этого игра может продолжать читать item_data мимо наших .data."""
+    text, bom, entries = iter_all(a.prefs)
+    uid = detect_uid(entries)
+    if not uid:
+        sys.exit(" accountId не найден")
+    ops = []
+    for name, e in sorted(entries.items()):
+        if re.fullmatch(rf"OpenRijTest_{uid}", name) or re.fullmatch(r"LOCALOpenRijTest", name) \
+                or re.fullmatch(rf"{uid}_OpenRijTest", name):
+            if e["value"] not in ("0", "false", "False"):
+                ops.append((name, "0", "int"))
+    if not ops:
+        print("[i] Rij-канал в prefs уже выключен (или флагов нет)")
+        return
+    for k, v, kind in ops:
+        print(f"  {k}: {entries[k]['value']!r} -> '0'")
+    edit_keys(a.prefs, ops, yes=a.yes)
+    print("[!] также выставь UseRijData=false в setting.data:")
+    print("    python sk_save_editor.py preset <profile>/files/setting.data rij-legacy --yes")
+
+
+def cmd_find(a):
+    """Поиск по ключам и ДЕКОДИРОВАННЫМ значениям prefs (без учёта регистра).
+    Для разведки: python3 sk_prefs.py find prefs.xml follower"""
+    text, bom, entries = iter_all(a.prefs)
+    q = a.substr.lower()
+    uid = detect_uid(entries)
+    hits = 0
+    for name, e in sorted(entries.items()):
+        dec = try_decode(e["value"]) or ""
+        if q in name.lower() or q in dec.lower():
+            hits += 1
+            if hits > a.limit:
+                print("... (обрезано, увеличь --limit)")
+                break
+            shown = dec if len(dec) <= a.head else dec[:a.head] + "..."
+            print(f"{name}\n    [{e['kind']}] {shown}")
+    if not hits:
+        print("<не найдено>")
+    else:
+        print(f"\nнайдено: {hits}" + (" (ограничено)" if hits > a.limit else ""))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -471,7 +666,10 @@ def main():
                      ("del", cmd_del), ("mirror", cmd_mirror),
                      ("gems", cmd_gems), ("unlock-heroes", cmd_unlock_heroes),
                      ("unlock-plants", cmd_unlock_plants),
-                     ("unlock-skills", cmd_unlock_skills)]:
+                     ("unlock-skills", cmd_unlock_skills),
+                     ("unlock-levels", cmd_unlock_levels),
+                     ("unlock-skins", cmd_unlock_skins),
+                     ("rij-off", cmd_rij_off), ("find", cmd_find)]:
         p = sub.add_parser(name)
         p.add_argument("prefs", help="путь к prefs.xml (v2.playerprefs.xml)")
         if name == "dump":
@@ -497,11 +695,23 @@ def main():
             p.add_argument("--all-ns", action="store_true", default=True,
                            help="также LOCALlast_gems (по умолчанию вкл)")
         if name in ("set", "del", "gems", "unlock-heroes", "unlock-plants",
-                    "unlock-skills"):
+                    "unlock-skills", "unlock-levels", "unlock-skins", "rij-off"):
             p.add_argument("--yes", action="store_true")
         if name in ("unlock-heroes", "unlock-plants"):
             p.add_argument("--extend", action="store_true",
                            help="создать ключи для всех виденных id")
+        if name == "unlock-levels":
+            p.add_argument("n", type=int, help="уровень героев 1-8")
+            p.add_argument("--extend", action="store_true",
+                           help="создать cN_level для всех виденных героев")
+        if name == "unlock-skins":
+            p.add_argument("--value", type=int, default=1,
+                           help="код открытого скина (по умолчанию 1)")
+        if name == "find":
+            p.add_argument("substr", help="подстрока для поиска по ключам/значениям")
+            p.add_argument("--limit", type=int, default=40)
+            p.add_argument("--head", type=int, default=200,
+                           help="символов значения на показ")
         p.set_defaults(fn=fn)
     a = ap.parse_args()
     a.fn(a)
