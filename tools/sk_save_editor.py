@@ -63,7 +63,7 @@ except ImportError:  # pragma: no cover
     AES = DES = None
 
 PKG = "com.ChillyRoom.DungeonShooter"
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 
 # ---------------------------------------------------------------------------
 # 1. Крипто-константы (литералы из игры/метадаты, REVERSING.md §3.2, §4)
@@ -924,13 +924,14 @@ def _uid_variant_hint(doc):
 # Игра молча игнорирует неизвестные id, так что риск ограничен. Расширение:
 # preset ... grant-materials 499 --ids-file мой.json
 _IDS_870_JSON = r'''{
-  "_source": "itemData cloud snapshot GPV2_235288940 (2026-11) + global-metadata.dat 8.7.0 string literals; verified by context",
+  "_source": "itemData cloud snapshot GPV2_235288940 (2026-11) + global-metadata.dat 8.7.0 string literals + device prefs rewards config (1.4.1: + fragment_1/2); verified by context",
   "materials": [
     "material_ancient_weapon_fragment", "material_battery", "material_c17_book_1", "material_c17_book_2",
     "material_c18_book_1", "material_c18_book_2", "material_c20_book_1", "material_c20_book_2",
     "material_c21_book_1", "material_c21_book_2", "material_cell", "material_dead_cell",
     "material_fertilize", "material_fish", "material_fragment_c6h8o6", "material_fragment_zulan",
-    "material_gear", "material_gem", "material_generic_weapon_fragment_3", "material_generic_weapon_fragment_4",
+    "material_gear", "material_gem", "material_generic_weapon_fragment_1", "material_generic_weapon_fragment_2",
+    "material_generic_weapon_fragment_3", "material_generic_weapon_fragment_4",
     "material_generic_weapon_fragment_5", "material_grain", "material_hopper_ticket", "material_iron",
     "material_jewelry_fragment", "material_magic_black", "material_magic_blue", "material_magic_cyan",
     "material_magic_green", "material_magic_orange", "material_magic_purple", "material_magic_red",
@@ -972,6 +973,7 @@ _IDS_870_JSON = r'''{
     "blueprint_weapon_341": "Researched", "blueprint_weapon_356": "Researched",
     "blueprint_weapon_370": "Researched", "blueprint_weapon_fish_rod": "Researched",
     "blueprint_weapon_fish_rod_a": "Researched",
+    "weapon_evolution_unlock_blueprint": "Got",
     "garden_skin_1": "Got", "multi_room_skin_7": "Got"
   }
 }'''
@@ -1209,6 +1211,8 @@ def p_grant_heroes_levels(doc, a, opts):
         if hl.get(h) != n:
             changes.append(("gameData.heroLevel[%s]" % h, hl.get(h, "<создан>"), n))
         hl[h] = n
+    print("[i] помни: UI героя читает уровень и из playerprefs (ключи c{0}_level) —")
+    print("    python sk_prefs.py unlock-levels %d <profile>/shared_prefs/com.ChillyRoom.DungeonShooter.v2.playerprefs.xml --extend --yes" % n)
     return changes
 
 
@@ -1397,18 +1401,30 @@ def p_dungeon_times(doc, a, opts):
     # _highestLevelArrived {"Any":15,"BossRush":6,"Normal":15}.
     # Гейты «сыграйте в режиме уровня 3 раза» читают именно эти словари.
     bump("_enterDungeonTimes", ["Any", "Normal", "Season", "ARAM", "BossRush"], n)
-    bump("_finishDungeonTimes", ["Any", "Normal"], n)
+    bump("_finishDungeonTimes", ["Any", "Normal", "Season"], n)
     bump("_finishLevelTimes",
-         ["Any#0", "Any#1", "Any#2", "Normal#0", "Normal#1", "Normal#2"], n)
+         ["Any#0", "Any#1", "Any#2", "Normal#0", "Normal#1", "Normal#2",
+          "Season#0", "Season#1", "Season#2"], n)
     bump("_highestLevelArrived", ["Any", "Normal", "BossRush"], 15)
+    # 1.4.0: гейт может читать и простой счётчик событий (топ-сейв:
+    # event2Count.enter_normal_mode_count = 111), а не только LevelGameStatisticData
+    ev = doc.obj.get("event2Count")
+    if not isinstance(ev, dict):
+        ev = {}
+        doc.obj["event2Count"] = ev
+    for k in ("enter_normal_mode_count", "new_player_enter_normal_mode_count"):
+        cur = ev.get(k) or 0
+        if not isinstance(cur, int) or cur < n:
+            changes.append(("statistic.event2Count[%s]" % k, cur, n))
+            ev[k] = n
     return changes
 
 
-@preset("pets-intimacy", "N", "statistic: привязанность ВСЕХ питомцев -> N (event2Count pet_i_intimacy/full_intimacy/action_unlock — форма из топ-сейва; 240 = полный у большинства, 300 покрывает всех)", experimental=True)
+@preset("pets-intimacy", "[N]", "statistic: привязанность ВСЕХ питомцев -> N (event2Count pet_i_intimacy/full_intimacy/action_unlock — форма из топ-сейва и метадаты pet_{0}_intimacy; ПОЛНАЯ привязанность = 240 — значение топ-сейва, дефолт с 1.4.0)", experimental=True)
 def p_pets_intimacy(doc, a, opts):
     if doc.cls != "StatisticData":
         raise RuntimeError("pets-intimacy — пресет для statistic.data (класс StatisticData), а тут %s" % (doc.cls or "?"))
-    n = int(a[0]) if a else 300
+    n = int(a[0]) if a else 240
     ev = doc.obj.get("event2Count")
     if not isinstance(ev, dict):
         ev = {}
@@ -1428,39 +1444,74 @@ def p_pets_intimacy(doc, a, opts):
     return changes
 
 
-@preset("weapon-evol", "N", "фрагменты эволюции оружия -> N (WeaponEvolutionData.weapons: UpdateMaterialCount; синтез по форме облачного WUWeapon Name/Level/CurrentSkinId/UnlockedSkins/ModuleSlots/UpdateMaterialCount; 2-й аргумент — скинов на оружие, по умолч. 10)", experimental=True)
+@preset("weapon-evol", "[SKINS] [LEVEL]",
+        "облики оружия: WeaponEvolutionData.weapons -> локальная форма RGScript.WeaponEvolution.WUWeapon "
+        "{Name, Level, CurrentSkinIndex, UnlockedSkins} (1.4.0: ранее писали облачную V1-форму с "
+        "CurrentSkinId/ModuleSlots/UpdateMaterialCount — игра эти поля ИГНОРИРУЕТ, потому скины и не открылись). "
+        "SKINS — сколько скинов открыть (дефолт 10), LEVEL — уровень эволюции оружия (необязателен). "
+        "Фрагменты эволюции — отдельным заходом: preset item_data*.data grant-materials 499", experimental=True)
 def p_weapon_evol(doc, a, opts):
     if not (doc.cls or "").endswith("WeaponEvolutionData"):
         raise RuntimeError("weapon-evol — пресет для weapon_evolution_data*.data (класс WeaponEvolutionData), а тут %s" % (doc.cls or "?"))
-    n = int(a[0])
-    skins = int(a[1]) if len(a) > 1 else 10
+    # обратная совместимость: старый вызов "weapon-evol 999 10" нёс N=999 (фрагменты,
+    # теперь через grant-materials) и SKINS=10 — игнорируем чисто числовой первый
+    # аргумент, если их больше одного
+    if len(a) >= 2:
+        skins = int(a[1])
+        level = int(a[2]) if len(a) > 2 and str(a[2]).lstrip("-").isdigit() else None
+    else:
+        skins = int(a[0]) if a else 10
+        level = None
     wp = doc.obj.get("weapons")
     changes = []
     catalog = json.loads(_WEAPON_IDS_870_JSON)
 
     def want_entry(wid):
-        return {"Name": wid, "Level": 0, "CurrentSkinId": 0,
-                "UnlockedSkins": list(range(max(1, skins))),
-                "ModuleSlots": [], "UpdateMaterialCount": n}
+        # ЛОКАЛЬНЫЙ класс RGScript.WeaponEvolution.WUWeapon (метадата 8.7.0):
+        # Name, Level, CurrentSkinIndex, UnlockedSkins — ровно 4 поля.
+        return {"Name": wid, "Level": int(level or 0), "CurrentSkinIndex": 0,
+                "UnlockedSkins": list(range(max(1, skins)))}
+
+    def fix_entry(cur, wid):
+        """Привести существующую запись (возможно, в старой облачной форме) к WUWeapon."""
+        touched = []
+        if cur.get("Name") != wid:
+            cur["Name"] = wid
+            touched.append(("Name", cur.get("Name"), wid))
+        # мусорные облачные поля молча убираем — игра их всё равно игнорирует
+        for ghost in ("CurrentSkinId", "ModuleSlots", "UpdateMaterialCount"):
+            if ghost in cur:
+                touched.append((ghost, cur.pop(ghost), "<удалено>"))
+        if level is not None and (cur.get("Level") or 0) < level:
+            touched.append(("Level", cur.get("Level"), level))
+            cur["Level"] = int(level)
+        us = cur.get("UnlockedSkins")
+        want = list(range(max(1, skins)))
+        if not isinstance(us, list):
+            touched.append(("UnlockedSkins", us, want))
+            cur["UnlockedSkins"] = want
+        else:
+            have = {x for x in us if isinstance(x, int)}
+            add = [i for i in want if i not in have]
+            if add:
+                us.extend(add)
+                touched.append(("UnlockedSkins", len(us) - len(add), len(us)))
+        if "CurrentSkinIndex" not in cur:
+            cur["CurrentSkinIndex"] = 0
+            touched.append(("CurrentSkinIndex", "<создан>", 0))
+        return touched
 
     if isinstance(wp, dict):
         # словарь {weapon_id: {...}} — обновляем существующие, досоздаём из каталога
         for wid in sorted(set(list(wp.keys()) + catalog)):
             cur = wp.get(wid)
             if not isinstance(cur, dict):
-                changes.append(("weapons[%s]" % wid, "<создан>", "UpdateMaterialCount=%d, UnlockedSkins<=%d" % (n, skins)))
+                changes.append(("weapons[%s]" % wid, "<создан>",
+                                "WUWeapon: UnlockedSkins<=%d%s" % (skins, ", Level=%d" % level if level else "")))
                 wp[wid] = want_entry(wid)
                 continue
-            if (cur.get("UpdateMaterialCount") or 0) < n:
-                changes.append(("weapons[%s].UpdateMaterialCount" % wid,
-                                cur.get("UpdateMaterialCount"), n))
-                cur["UpdateMaterialCount"] = n
-            us = cur.get("UnlockedSkins")
-            if isinstance(us, list) and len(us) < skins:
-                have = {x for x in us if isinstance(x, int)}
-                add = [i for i in range(skins) if i not in have]
-                changes.append(("weapons[%s].UnlockedSkins" % wid, len(us), len(us) + len(add)))
-                us.extend(add)
+            for fld, old, new in fix_entry(cur, wid):
+                changes.append(("weapons[%s].%s" % (wid, fld), old, new))
     else:
         if not isinstance(wp, list):
             wp = []
@@ -1472,18 +1523,10 @@ def p_weapon_evol(doc, a, opts):
                 entry = want_entry(wid)
                 wp.append(entry)
                 changes.append(("weapons += %s" % wid, "<создан>",
-                                "UpdateMaterialCount=%d, UnlockedSkins<=%d" % (n, skins)))
+                                "WUWeapon: UnlockedSkins<=%d%s" % (skins, ", Level=%d" % level if level else "")))
                 continue
-            if (cur.get("UpdateMaterialCount") or 0) < n:
-                changes.append(("weapons[%s].UpdateMaterialCount" % wid,
-                                cur.get("UpdateMaterialCount"), n))
-                cur["UpdateMaterialCount"] = n
-            us = cur.get("UnlockedSkins")
-            if isinstance(us, list) and len(us) < skins:
-                have = {x for x in us if isinstance(x, int)}
-                add = [i for i in range(skins) if i not in have]
-                changes.append(("weapons[%s].UnlockedSkins" % wid, len(us), len(us) + len(add)))
-                us.extend(add)
+            for fld, old, new in fix_entry(cur, wid):
+                changes.append(("weapons[%s].%s" % (wid, fld), old, new))
     return changes
 
 
@@ -1529,6 +1572,133 @@ def p_troop2_open(doc, a, opts):
             if v in (False, 0, None):
                 changes.append(("seasonData.troop2BoughtMercenary[%s]" % k, v, 1))
                 bm[k] = 1
+    return changes
+
+
+# Задачи сезона (Troop2 «защитники»/ARAM2/Artifacts2). Класс записи —
+# CommonSeasonTaskData/ChampionTaskSaveData {Id, IsComplete, HasGetReward,
+# CurrentScore, GetTaskTimeStamp} (метадата 8.7.0). ФАКТ 1.4.0: на живом
+# устройстве реальные списки задач лежали в base season_data.data, а
+# season_data_<acc>_.data был с ПУСТЫМИ списками — поэтому пустые списки
+# дозаполняем из копии-сиблинга, и все IsComplete -> true.
+_SEASON_MODES = ("troop2", "aram2", "artifacts2")
+_SEASON_TASK_FIELDS = ("troop2ChampionNormalTasks", "troop2ChampionWeeklyTasks",
+                       "aram2ChampionNormalTasks", "aram2ChampionWeeklyTasks",
+                       "artifacts2ChampionNormalTasks", "artifacts2ChampionWeeklyTasks")
+
+
+def _sibling_season_tasks(doc):
+    """Самый наполненный sibling этой же секции: {field: [tasks]}."""
+    best = {}
+    for sp in _section_siblings(doc.path):
+        try:
+            sib = load_doc(sp, None)
+        except Exception:
+            continue
+        if (sib.cls or "") != "SeasonData":
+            continue
+        for fld in _SEASON_TASK_FIELDS:
+            lst = sib.obj.get(fld)
+            if isinstance(lst, list) and lst and len(lst) > len(best.get(fld, [])):
+                best[fld] = lst
+    return best
+
+
+@preset("season-open", "[TROPHY]",
+        "сезон (защитники Troop2/ARAM2/Artifacts2): все задачи *ChampionNormalTasks/"
+        "*ChampionWeeklyTasks -> IsComplete=true (+CurrentScore), TaskExp/TrophyLevel вверх "
+        "(TROPHY, дефолт 60; ClaimedTrophyLevel не трогаем — награды останутся к получению). "
+        "Пустые списки задач дозаполняются из копии-сиблинга (факт: реальные списки живут в base season_data.data)",
+        experimental=True)
+def p_season_open(doc, a, opts):
+    if doc.cls != "SeasonData":
+        raise RuntimeError("season-open — пресет для season_data*.data (класс SeasonData), а тут %s" % (doc.cls or "?"))
+    trophy = int(a[0]) if a else 60
+    changes = []
+    siblings = _sibling_season_tasks(doc)
+    for fld in _SEASON_TASK_FIELDS:
+        lst = doc.obj.get(fld)
+        if not isinstance(lst, list):
+            lst = []
+            doc.obj[fld] = lst
+        if not lst and siblings.get(fld):
+            lst.extend(json.loads(json.dumps(siblings[fld])))
+            changes.append(("%s: дозаполнено из копии-сиблинга" % fld,
+                            "<пусто>", "%d задач" % len(lst)))
+        done = 0
+        for t in lst:
+            if not isinstance(t, dict):
+                continue
+            key = "IsComplete" if "IsComplete" in t else ("isComplete" if "isComplete" in t else "IsComplete")
+            if t.get(key) is not True:
+                t[key] = True
+                done += 1
+            cs_key = "CurrentScore" if "CurrentScore" in t else "currentScore"
+            if cs_key in t and isinstance(t.get(cs_key), int) and t[cs_key] < 99999:
+                t[cs_key] = 99999
+        if done:
+            changes.append(("%s: IsComplete=true" % fld, "%d не завершено" % done,
+                            "все завершены (%d задач)" % len(lst)))
+    for mode in _SEASON_MODES:
+        for fld in ("%sTaskExp" % mode, "%sTrophyLevel" % mode):
+            cur = doc.obj.get(fld) or 0
+            want = 99999 if fld.endswith("TaskExp") else trophy
+            if cur < want:
+                changes.append(("seasonData.%s" % fld, cur, want))
+                doc.obj[fld] = want
+    return changes
+
+
+# Карьерные задачи (task.data, NewTaskData): {ID, Status("End"/"Progress"),
+# TaskType("Career"...), CurrentProgress, TargetProgress, ProgressCacheInfos...}
+# — форма из топ-сейва. Гейты вида «Сыграйте в режиме уровня N раз» могут жить
+# здесь (прогресс пересчитывается TaskSystem-ProgressChecker из statistic).
+@preset("tasks-done", "",
+        "task.data: все NewTaskData -> Status='End', CurrentProgress=TargetProgress "
+        "(карьерные задачи, в т.ч. гейты «сыграйте в режиме уровня»); HasGotReward не трогаем",
+        experimental=True)
+def p_tasks_done(doc, a, opts):
+    if (doc.cls or "") != "RGScript.Data.TaskData":
+        raise RuntimeError("tasks-done — пресет для task*.data (класс RGScript.Data.TaskData), а тут %s" % (doc.cls or "?"))
+    ntd = doc.obj.get("NewTaskData")
+    if not isinstance(ntd, list):
+        raise RuntimeError("в этом task.data нет NewTaskData (пустая секция?)")
+    changes = []
+    done = 0
+    for t in ntd:
+        if not isinstance(t, dict) or "ID" not in t:
+            continue
+        touched = False
+        if t.get("Status") != "End":
+            t["Status"] = "End"
+            touched = True
+        tp = t.get("TargetProgress")
+        if isinstance(tp, int) and t.get("CurrentProgress", 0) < tp:
+            t["CurrentProgress"] = tp
+            touched = True
+        if touched:
+            done += 1
+    if done:
+        changes.append(("NewTaskData: Status=End, CurrentProgress=Target",
+                        "%d в прогрессе" % done, "все завершены (%d задач)" % len(ntd)))
+    # tasks[] (легаси-испытания): count >= total, isCompleted=true
+    tasks = doc.obj.get("tasks")
+    if isinstance(tasks, list):
+        done2 = 0
+        for t in tasks:
+            if not isinstance(t, dict):
+                continue
+            tot = t.get("total")
+            if isinstance(tot, int) and t.get("count", 0) < tot:
+                t["count"] = tot
+                t["isCompleted"] = True
+                done2 += 1
+            elif t.get("isCompleted") is not True:
+                t["isCompleted"] = True
+                done2 += 1
+        if done2:
+            changes.append(("tasks[]: count=total, isCompleted=true",
+                            "%d не завершено" % done2, "все завершены"))
     return changes
 
 
@@ -1613,7 +1783,8 @@ def run_preset(doc: SaveDoc, name: str, pargs, opts):
     if name not in PRESETS:
         raise KeyError("нет пресета %r (см. `presets`)" % name)
     spec = PRESETS[name]
-    need = [x for x in spec["args"].split() if x]
+    # [OPT] — необязательный аргумент, ОБЯЗАТЕЛЬНЫЕ — без скобок
+    need = [x for x in spec["args"].split() if x and not x.startswith("[")]
     if len(pargs) < len(need):
         raise KeyError("пресету %r нужны аргументы: %s" % (name, spec["args"]))
     changes = spec["fn"](doc, pargs, opts)
@@ -2474,9 +2645,10 @@ def cmd_selftest(args):
     check("weapon_evolution класс", (dwe.cls or "").endswith("WeaponEvolutionData"), str(dwe.cls))
     run_preset(dwe, "weapon-evol", ["999", "12"], {})
     wlist = dwe.obj["weapons"]
-    check("weapon-evol: список из %d записей каталога" % len(json.loads(_WEAPON_IDS_870_JSON)),
+    check("weapon-evol: список из %d записей каталога (локальная форма WUWeapon)" % len(json.loads(_WEAPON_IDS_870_JSON)),
           isinstance(wlist, list) and len(wlist) == len(json.loads(_WEAPON_IDS_870_JSON))
-          and wlist[0]["Name"] == "weapon_000" and wlist[0]["UpdateMaterialCount"] == 999
+          and wlist[0]["Name"] == "weapon_000" and wlist[0]["CurrentSkinIndex"] == 0
+          and "CurrentSkinId" not in wlist[0] and "UpdateMaterialCount" not in wlist[0]
           and wlist[0]["UnlockedSkins"] == list(range(12)),
           "weapons=%d" % len(wlist))
     save_doc(dwe, verify=True)
@@ -2489,10 +2661,11 @@ def cmd_selftest(args):
     dwe2 = load_doc(fwe2)
     run_preset(dwe2, "weapon-evol", ["999", "12"], {})
     wd = dwe2.obj["weapons"]
-    check("weapon-evol: словарь — апдейт + досоздание",
-          wd["weapon_001"]["UpdateMaterialCount"] == 999
+    check("weapon-evol: словарь — апдейт + досоздание + чистка облачных полей",
+          "CurrentSkinId" not in wd["weapon_001"] and "UpdateMaterialCount" not in wd["weapon_001"]
+          and wd["weapon_001"]["CurrentSkinIndex"] == 0
           and wd["weapon_001"]["UnlockedSkins"] == list(range(12))
-          and wd["weapon_002"]["UpdateMaterialCount"] == 999
+          and wd["weapon_002"]["CurrentSkinIndex"] == 0
           and len(wd) == len(json.loads(_WEAPON_IDS_870_JSON)),
           "weapons=%d" % len(wd))
     save_doc(dwe2, verify=True)
@@ -2511,6 +2684,45 @@ def cmd_selftest(args):
           and dsd.obj["troop2BoughtMercenary"] == {"7": 1},
           json.dumps({k: v for k, v in dsd.obj.items() if "troop2" in k}, ensure_ascii=False)[:120])
     save_doc(dsd, verify=True)
+
+    # --- 13c) season-open: задачи сезона -> IsComplete=true ---
+    dsd2 = load_doc(fsd)
+    dsd2.obj["troop2ChampionNormalTasks"] = [
+        {"Id": 101, "IsComplete": False, "HasGetReward": False, "CurrentScore": 0},
+        {"Id": 102, "IsComplete": False, "HasGetReward": False, "CurrentScore": 2}]
+    dsd2.obj["troop2TaskExp"] = 0
+    run_preset(dsd2, "season-open", ["60"], {})
+    tn = dsd2.obj["troop2ChampionNormalTasks"]
+    check("season-open: задачи IsComplete=true + TaskExp/TrophyLevel",
+          all(t["IsComplete"] is True for t in tn) and tn[1]["CurrentScore"] == 99999
+          and dsd2.obj["troop2TaskExp"] == 99999 and dsd2.obj["troop2TrophyLevel"] == 60
+          and not dsd2.obj.get("troop2ClaimedTrophyLevel"),
+          json.dumps(tn, ensure_ascii=False)[:100])
+    save_doc(dsd2, verify=True)
+
+    # --- 13d) tasks-done: NewTaskData + легаси tasks[] ---
+    ftd = os.path.join(tmp, "task_235288966_.data")
+    with open(ftd, "wb") as f:
+        f.write(encode_any({"NewTaskData": [
+                                {"ID": 300, "Status": "Progress", "TaskType": "Career",
+                                 "CurrentProgress": 2, "TargetProgress": 5},
+                                {"ID": 301, "Status": "End", "TaskType": "Career",
+                                 "CurrentProgress": 1, "TargetProgress": 1}],
+                            "tasks": [{"type": "Enemy", "enemyId": "boss08", "total": 1,
+                                       "count": 0, "isCompleted": False, "isRewarded": False},
+                                      {"type": "Challenge", "enemyId": None, "total": 0,
+                                       "count": 10, "isCompleted": False, "isRewarded": False}],
+                            "currentTask": None, "completedTask": None},
+                           "utf8", "des-default", prefs))
+    dtd = load_doc(ftd)
+    run_preset(dtd, "tasks-done", [], {})
+    check("tasks-done: NewTaskData Status=End + tasks[] isCompleted",
+          dtd.obj["NewTaskData"][0]["Status"] == "End"
+          and dtd.obj["NewTaskData"][0]["CurrentProgress"] == 5
+          and dtd.obj["tasks"][0]["count"] == 1 and dtd.obj["tasks"][0]["isCompleted"] is True
+          and dtd.obj["tasks"][1]["isCompleted"] is True,
+          json.dumps(dtd.obj["NewTaskData"][0], ensure_ascii=False))
+    save_doc(dtd, verify=True)
 
     # --- 14) --all-copies: находим обе копии item_data ---
     sibs = _section_siblings(fitem)  # fitem = <tmp>/item_data.data
@@ -2657,14 +2869,18 @@ def _section_siblings(path):
 def _mutator_cmd(args, apply_fn, desc):
     prefs_xml = args.prefs or autodetect_prefs(args.file)
     docs = [(args.file, load_doc(args.file, prefs_xml))]
-    if getattr(args, "all_copies", False):
+    # 1.4.0: --all-copies ВКЛЮЧЁН ПО УМОЛЧАНИЮ (игра может читать любую из копий
+    # секции: base <sec>.data или UID <sec>_<acc>_.data — факт 1.4.0: у task/
+    # season реальный контент был в base, у item_data/statistic — в UID; правим
+    # обе). Отключить: --only-this.
+    if not getattr(args, "only_this", False):
         for sp in _section_siblings(args.file):
             try:
                 docs.append((sp, load_doc(sp, prefs_xml)))
             except Exception as e:
                 print("[!] %s пропущен (%s)" % (os.path.basename(sp), e))
         if len(docs) > 1:
-            print("[i] --all-copies: цели %s" % ", ".join(os.path.basename(p) for p, _ in docs))
+            print("[i] all-copies (по умолчанию): цели %s" % ", ".join(os.path.basename(p) for p, _ in docs))
     applied = 0
     for path, doc in docs:
         changes = apply_fn(doc)
@@ -2844,7 +3060,9 @@ def main(argv=None):
     common.add_argument("--force-id", action="store_true", default=argparse.SUPPRESS,
                         help="разрешить правку cloudSaveId/platformId/ChillyUid/serialzedVersion")
     common.add_argument("--all-copies", action="store_true", default=argparse.SUPPRESS,
-                        help="применить правку ко ВСЕМ копиям секции (item_data.data + item_data_<acc>_.data)")
+                        help="(с 1.4.0 вкл. по умолчанию) применять правку ко ВСЕМ копиям секции")
+    common.add_argument("--only-this", action="store_true", default=argparse.SUPPRESS,
+                        help="править ТОЛЬКО указанный файл, без копий секции (отключает all-copies)")
 
     ap = argparse.ArgumentParser(
         prog="sk_save_editor.py",
@@ -2869,7 +3087,9 @@ def main(argv=None):
     ap.add_argument("--force-id", action="store_true",
                     help="разрешить правку cloudSaveId/platformId/ChillyUid/serialzedVersion")
     ap.add_argument("--all-copies", action="store_true",
-                    help="править все копии секции (для item_data: и легаси-, и UID-файл)")
+                    help="(с 1.4.0 вкл. по умолчанию) править все копии секции")
+    ap.add_argument("--only-this", action="store_true",
+                    help="править только указанный файл, без копий секции")
     sub = ap.add_subparsers(dest="cmd")
 
     sp = sub.add_parser("info", parents=[common], help="форматы файлов")

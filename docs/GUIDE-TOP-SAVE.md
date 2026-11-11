@@ -178,8 +178,13 @@ python tools\sk_save_editor.py preset .\profile\files\game.data room-unlock --ye
 :: 5) эволюция оружия: фрагменты (UpdateMaterialCount) + скины (эксперимент; N SKINS)
 python tools\sk_save_editor.py preset .\profile\files\weapon_evolution_data_235288966_.data weapon-evol 999 10 --all-copies --yes
 
-:: 6) сезон «защитники» (Troop2): скиллы отряда + сложность (эксперимент)
+:: 6) сезон «защитники» (Troop2) + ARAM2/Artifacts2 (эксперимент)
 python tools\sk_save_editor.py preset .\profile\files\season_data_235288966_.data troop2-open --all-copies --yes
+python tools\sk_save_editor.py preset .\profile\files\season_data_235288966_.data season-open 60 --all-copies --yes
+python tools\sk_save_editor.py preset .\profile\files\season_data_235288966_.data season-coins 30000 --all-copies --yes
+
+:: 7) карьерные задания (Доска заданий: «Сыграйте в режиме уровня» и др.)
+python tools\sk_save_editor.py preset .\profile\files\task_235288966_.data tasks-done --all-copies --yes
 ```
 
 **Про «защитников» (наемников Troop2)**: карточки закрываются «покупкой» в
@@ -191,12 +196,12 @@ python tools\sk_save_editor.py preset .\profile\files\season_data_235288966_.dat
 (только поле troop2BoughtMercenary). По реальным id дополню `troop2-open`
 (`--ids-file файл.json` с `{"troop2_mercenaries": [...]}` уже поддержан).
 
-**Про облики оружия**: модель записи снята с облачного DTO (`WUWeapon`:
-Name/Level/CurrentSkinId/UnlockedSkins/ModuleSlots/UpdateMaterialCount),
-каталог 353 реальных id weapon_NNN — из топ-сейва. Структура локального
-`weapons` (список/словарь) угадывается по обоим вариантам — если после
-weapon-evol игра падает на загрузке, сделай `rescue` и пришли мне вывод
-`dump` твоего weapon_evolution_data — подгоню формат по факту.
+**Про облики оружия**: v1.4.0 пишет ЛОКАЛЬНУЮ форму `RGScript.WeaponEvolution.WUWeapon`
+{Name, Level, CurrentSkinIndex, UnlockedSkins} (по метадате 8.7.0, ровно 4 поля).
+Облачная форма {CurrentSkinId, ModuleSlots, UpdateMaterialCount} игнорировалась
+игрой — из-за этого скины и не открылись в прогоне 11.11. Если после weapon-evol
+игра падает на загрузке, сделай `rescue` и пришли мне вывод `dump` твоего
+weapon_evolution_data — подгоню формат по факту.
 
 ### 3.2. prefs-половина (v1.2.0: уровни и скины героев тоже здесь)
 
@@ -355,5 +360,5 @@ python tools\sk_save_editor.py write .\profile\files\mall_reload_data_235288966_
 | Герои открыты, но все 1 уровня; скинов 0 | Патчили только game.data — уровни и скины живут ещё и в prefs (`cN_level`, `cN_skinN`). Прогони §3.2: `unlock-levels 8 --extend` + `unlock-skins` + `grant-heroes-levels 8` + `grant-skins`. ВАЖНО: если в твоём sk_prefs.py нет `unlock-levels` — файл старый, скачай v1.3.0 заново (это и была причина «уровней 1» в прогоне 12.11) |
 | «Сыграй в режиме уровня» не засчитывается | В 1.2.0 `dungeon-times` писал счётчики по героям — а игра читает словари по РЕЖИМАМ (Any/Normal). Обнови sk_save_editor.py до v1.3.0 и повтори |
 | Привязанность питомцев 0 | Она в statistic.data → event2Count (`pet_N_intimacy/full_intimacy/action_unlock`), не в game.data/prefs. v1.3.0: `preset statistic.data pets-intimacy 300 --yes` |
-| «Защитники» (Troop2) закрыты | Скиллы/сложность/отряд — `preset season_data_*_.data troop2-open --all-copies --yes`. Самих наемников пока только покупать за монеты сезона (id собираем с устройства — см. §3.1) |
+| «Защитники» (Troop2) закрыты | Скиллы/сложность/отряд — `troop2-open`; задачи/трофеи/дорожка сезона — `season-open 60`; монеты — `season-coins`. Самих наемников пока только покупать за монеты сезона (id собираем с устройства — см. §3.1) |
 | doctor: «копии item_data РАСХОДЯТСЯ» | Правка легла только в одну копию секции — игра может читать другую. Все item_data-пресеты запускай с `--all-copies` |
