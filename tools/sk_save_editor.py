@@ -1087,52 +1087,105 @@ def device_sh(adb_path, root_mode, cmd, timeout=180):
     return adb_run(adb_path, ["exec-out", "su -c \"%s\"" % cmd.replace('"', '\\"')], timeout=timeout)
 
 
+def _q(path):
+    """Одинарные кавычки для device-side пути (внутри su -c "...")."""
+    return "'%s'" % path.replace("'", "'\\''")
+
+
+def device_read_file(adb_path, root, path, timeout=300):
+    """Читает файл с устройства БИНАРНО-БЕЗОПАСНО: base64 через exec-out.
+    Старые adb (LDPlayer ставит ~1.0.31) портят бинарные потоки exec-out
+    (PTY: \n -> \r\n) — tar -cf - через su молча теряет хвост; base64 —
+    текст и проходит без искажений. Пустой файл -> пустой результат."""
+    raw = device_sh(adb_path, root, "base64 %s" % _q(path), timeout=timeout)
+    try:
+        return base64.b64decode(b"".join(raw.split()))
+    except Exception as e:
+        raise RuntimeError("base64 не декодировался (%s) — на устройстве нет toybox base64?" % e)
+
+
+def device_list_files(adb_path, root, d, timeout=120):
+    """Список РЕГУЛЯРНЫХ файлов каталога (без подкаталогов). find без кавычек
+    и глобов — не ломается об toybox ('bad arg') и старые su."""
+    out = device_sh(adb_path, root, "find %s -maxdepth 1 -type f" % d,
+                    timeout=timeout).decode("utf-8", "replace")
+    return sorted({l.strip("\r") for l in out.splitlines() if l.strip()})
+
+
 def cmd_pull(args):
     adb_path = args.adb or shutil.which("adb") or "adb"
+    debug = bool(getattr(args, "debug", False))
+
+    def dbg(msg):
+        if debug:
+            print("[dbg] %s" % msg)
+
     adb_run(adb_path, ["start-server"])
-    dev = adb_run(adb_path, ["get-state"]).decode().strip()
+    try:
+        dev = adb_run(adb_path, ["get-state"]).decode().strip()
+    except RuntimeError as e:
+        raise RuntimeError("adb: устройство не найдено (%s). LDPlayer: '.\\adb.exe devices', "
+                           "затем 'adb connect 127.0.0.1:5554' (порт — из строки эмулятора: "
+                           "5554/5555/5556...), либо укажи --adb" % e)
     if dev != "device":
-        raise RuntimeError("нет устройства (adb get-state = %r)" % dev)
+        raise RuntimeError("устройство в состоянии %r (offline/unauthorized)" % dev)
     root = device_has_root(adb_path)
     if not root:
-        raise RuntimeError("нет root: забрать /data/data/%s не выйдет" % PKG)
+        raise RuntimeError("нет root: забрать /data/data/%s не выйдет. "
+                           "LDPlayer: настройки эмулятора -> Root-права = ON, проверь: "
+                           "adb shell su -c id" % PKG)
     if args.kill:
         adb_run(adb_path, ["shell", "am force-stop %s" % PKG])
         print("[i] игра закрыта (кэш секций сброшен на диск)")
     outdir = os.path.abspath(args.out)
     os.makedirs(outdir, exist_ok=True)
-    remote = "tar -cf - -C /data/data/%s files shared_prefs" % PKG
-    blob = device_sh(adb_path, root, remote, timeout=300)
-    ok = False
-    if blob[:512].lstrip(b"\0"):
+    base = "/data/data/%s" % PKG
+    n_err = 0
+    counts = {}
+    for sub in ("files", "shared_prefs"):
+        d = "%s/%s" % (base, sub)
         try:
-            tf = tarfile.open(fileobj=io.BytesIO(blob), mode="r:")
-            members = [m for m in tf.getmembers() if m.isfile()]
-            for m in members:
-                m.name = m.name.lstrip("./")
-                if m.name.startswith(("files/", "shared_prefs/")):
-                    tf.extract(m, outdir)
-            ok = len(members) > 0
-        except Exception as e:
-            print("[!] tar-поток не разобрался (%s), fallback на per-file cat" % e)
-    if not ok:
-        listing = device_sh(adb_path, root,
-                            "find /data/data/%s/files /data/data/%s/shared_prefs -type f 2>/dev/null"
-                            % (PKG, PKG)).decode("utf-8", "replace").split()
-        for rp in listing:
-            rel = rp.split("/data/data/%s/" % PKG, 1)[-1]
-            lp = os.path.join(outdir, rel.replace("/", os.sep))
+            paths = device_list_files(adb_path, root, d)
+        except RuntimeError as e:
+            print("[!] %s не читается: %s" % (d, e))
+            counts[sub] = 0
+            continue
+        dbg("%s: %d файлов" % (d, len(paths)))
+        got = 0
+        for rp in paths:
+            name = rp.rsplit("/", 1)[-1]
+            lp = os.path.join(outdir, sub, name)
             os.makedirs(os.path.dirname(lp), exist_ok=True)
-            data = device_sh(adb_path, root, "cat \"%s\"" % rp)
+            try:
+                data = device_read_file(adb_path, root, rp)
+            except Exception as e:
+                n_err += 1
+                print("[!] %s: %s" % (rp, e))
+                continue
             with open(lp, "wb") as f:
                 f.write(data)
-        ok = len(listing) > 0
-    if not ok:
-        raise RuntimeError("пустой результат: проверь root и пути")
-    print("[ok] профиль вытащен в %s (%d+ файлов)" % (outdir, len(os.listdir(outdir))))
-    prefs = autodetect_prefs(outdir)
+            got += 1
+            dbg("  %s (%d байт)" % (name, len(data)))
+        counts[sub] = got
+        print("[i] %s: забрано %d/%d файлов" % (sub, got, len(paths)))
+    if n_err:
+        print("[!] ошибок чтения: %d — повтори pull или запусти с --debug" % n_err)
+    total = counts.get("files", 0) + counts.get("shared_prefs", 0)
+    if total == 0:
+        raise RuntimeError("ни один файл не прочитан: root есть, но su/base64 не отработали; "
+                           "запусти с --debug и пришли вывод")
+    fdir = os.path.join(outdir, "files")
+    data_cnt = len([f for f in (os.listdir(fdir) if os.path.isdir(fdir) else [])
+                    if f.endswith((".data", ".new"))])
+    print("[ok] профиль вытащен в %s: files/=%d, shared_prefs/=%d, из них *.data/.new=%d"
+          % (outdir, counts.get("files", 0), counts.get("shared_prefs", 0), data_cnt))
+    if data_cnt < 10:
+        print("[!] *.data подозрительно мало (<10) — секции сейва не долетели; "
+              "запусти ещё раз с --debug и пришли вывод")
+    prefs = autodetect_prefs(fdir) or autodetect_prefs(outdir)
     if prefs:
         p = load_prefs_xml(prefs)
+        print("[i] playerprefs: %s" % os.path.relpath(prefs, outdir))
         print("[i] cloudSaveId = %s" % p.get("cloudSaveId"))
         print("[i] ключи Rijndael/AES: Rij=%s IV=%s AES256=%s" % (
             "есть" if p.get(PREF_RIJ_KEY) else "НЕТ",
@@ -1159,17 +1212,34 @@ def cmd_push(args):
     device_sh(adb_path, root, "tar -cf %s -C /data/data/%s files shared_prefs" % (pre_backup, PKG))
     print("[i] страховка на устройстве: %s" % pre_backup)
     buf = io.BytesIO()
+
+    def _skip_new(ti):
+        return None if ti.name.endswith(".data.new") else ti
+
     with tarfile.open(fileobj=buf, mode="w") as tf:
         for sub in ("files", "shared_prefs"):
             subdir = os.path.join(src, sub)
             if os.path.isdir(subdir):
-                tf.add(subdir, arcname=sub)
+                tf.add(subdir, arcname=sub, filter=_skip_new)
     tmp = os.path.join("/data/local/tmp", "sk_push_%s.tar" % ts)
     local_tar = os.path.join(src, "_sk_push.tar")
     with open(local_tar, "wb") as f:
         f.write(buf.getvalue())
     adb_run(adb_path, ["push", local_tar, tmp])
     device_sh(adb_path, root, "tar -xf %s -C /data/data/%s" % (tmp, PKG))
+    if not getattr(args, "keep_new", False):
+        # .data.new — временные файлы атомарной записи; если на устройстве остался
+        # свежий .new, игра при первом запуске может откатить им наши правки .data.
+        try:
+            lst = device_sh(adb_path, root,
+                            "find /data/data/%s/files -maxdepth 1 -type f -name '*.data.new'" % PKG
+                            ).decode("utf-8", "replace").split()
+            if lst:
+                device_sh(adb_path, root, "rm -f %s" % " ".join(lst))
+                print("[i] убраны временные .data.new (%d шт.) — иначе первый запуск мог бы откатить правки" % len(lst))
+        except Exception as e:
+            print("[!] не удалось убрать .data.new (%s) — если правки откатятся, удали их вручную: "
+                  "adb shell \"su -c 'rm /data/data/%s/files/*.data.new'\"" % (e, PKG))
     try:
         uid = device_sh(adb_path, root, "stat -c %%u /data/data/%s/files" % PKG).decode().strip()
         if uid.isdigit():
@@ -1708,6 +1778,7 @@ def main(argv=None):
     sp.add_argument("-o", "--out", default="./device_saves")
     sp.add_argument("--adb", help="путь к adb (напр. D:\\LDPlayer\\LDPlayer14\\adb.exe)")
     sp.add_argument("--kill", action="store_true", help="закрыть игру перед pull")
+    sp.add_argument("--debug", action="store_true", help="печатать каждый файл и размер")
     sp.set_defaults(fn=cmd_pull)
 
     sp = sub.add_parser("push", help="залить каталог сейвов на устройство (root)")
@@ -1715,6 +1786,8 @@ def main(argv=None):
     sp.add_argument("--adb", help="путь к adb")
     sp.add_argument("--kill", action="store_true", help="закрыть игру перед push")
     sp.add_argument("--no-keep", action="store_true", help="удалить pre-backup с устройства")
+    sp.add_argument("--keep-new", action="store_true",
+                    help="НЕ удалять *.data.new на устройстве (не рекомендуется)")
     sp.set_defaults(fn=cmd_push)
 
     sp = sub.add_parser("selftest", help="проверка всех форматов и правок")

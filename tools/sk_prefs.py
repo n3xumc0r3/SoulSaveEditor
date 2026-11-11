@@ -7,7 +7,9 @@ Soul Knight 8.7.0. Закрывает вторую половину локаль
 
 Файл: /data/data/com.ChillyRoom.DungeonShooter/shared_prefs/
       com.ChillyRoom.DungeonShooter.v2.playerprefs.xml
-Кодировка: UTF-16LE c BOM (FF FE), Android-формат `<map>` с элементами
+Кодировка: на устройстве — обычный UTF-8/ASCII (стандартный Android
+SharedPreferences); UTF-16LE c BOM (FF FE) встречается в дампах, сохранённых
+через PowerShell-редирект. Формат `<map>`: элементы
 <int name="K" value="V"/> / <string name="K">V</string> / <long|float|boolean>.
 
 Ключевой факт (реальное устройство, 12.11.2026): игра хранит данные В ДВУХ
@@ -44,14 +46,16 @@ ELEM_RE = collections.OrderedDict([
 
 
 def read_text(path):
+    """-> (text, bom_flag). Устройство пишет UTF-8/ASCII без BOM;
+    UTF-16LE — артефакт PowerShell-дампов (всегда с BOM)."""
     raw = open(path, "rb").read()
     if raw[:2] == BOM:
         return raw.decode("utf-16"), True
-    # sometimes pulled without BOM: try utf-16le, fallback utf-8
-    try:
-        return raw.decode("utf-16-le"), False
-    except UnicodeDecodeError:
-        return raw.decode("utf-8"), False
+    if raw[:2] == b"\xfe\xff":
+        return raw.decode("utf-16-be"), True
+    if b"\x00" in raw[:128]:          # UTF-16LE без BOM (редкий случай)
+        return raw.decode("utf-16-le"), True
+    return raw.decode("utf-8"), False
 
 
 def write_text(path, text, bom):
@@ -124,6 +128,18 @@ def detect_uid(entries):
     return c.most_common(1)[0][0] if c else None
 
 
+def sniff_encoding(path):
+    """Человеческая метка кодировки файла (для info)."""
+    raw = open(path, "rb").read(4)
+    if raw[:2] == BOM:
+        return "UTF-16LE+BOM (PowerShell-дамп)"
+    if raw[:2] == b"\xfe\xff":
+        return "UTF-16BE+BOM"
+    if raw[:1] == b"\xff" or raw[:1] == b"\xfe":
+        return "UTF-16LE+BOM"
+    return "UTF-8/ASCII (как на устройстве)"
+
+
 # ---------------------------------------------------------------- commands --
 
 def cmd_info(a):
@@ -131,7 +147,7 @@ def cmd_info(a):
     kinds = collections.Counter(e["kind"] for e in entries.values())
     uid = detect_uid(entries)
     print(f"file        : {a.prefs}")
-    print(f"encoding    : UTF-16{'LE+BOM' if bom else '-LE (без BOM)'}")
+    print(f"encoding    : {sniff_encoding(a.prefs)}")
     print(f"entries     : {len(entries)}  ({', '.join(f'{k}={v}' for k, v in kinds.items())})")
     print(f"accountId   : {uid}")
     for k in ("cloudSaveId", f"{uid}_cloudSaveId", "last_chilly_uid",

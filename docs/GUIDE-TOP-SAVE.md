@@ -30,45 +30,80 @@
 python tools\sk_save_editor.py pull -o .\profile --kill --adb "D:\LDPlayer\LDPlayer14\adb.exe"
 ```
 
-Забирает `files/*.data` + `shared_prefs/*.playerprefs.xml`, печатает
-`cloudSaveId`. Результат: каталог `.\profile` — рабочая копия профиля.
+Забирает ВСЕ файлы верхнего уровня `files/` + `shared_prefs/` (включая
+playerprefs.xml), печатает `cloudSaveId`. Чтение пофайловое через
+`base64` — бинарно-безопасно даже на старых adb, где `tar`-поток молча
+теряет хвост (ровно это и случалось: pull отдавал 3 файла из 50).
+Результат: `profile\files\*.data` и `profile\shared_prefs\*.xml`.
+
+Если что-то не взялось — запускай с `--debug` (печатает каждый файл и
+размер) и смотри §8.
+
+### 1.1. План Б: бэкап приложения от LDPlayer (без adb)
+
+LDPlayer умеет бэкапить приложение целиком в `.rar` (Меню → Резервное
+копирование). Внутри `DungeonShooter_backup\` лежат те же `files\` и
+`shared_prefs\` — это и есть профиль:
+
+```bat
+:: распакуй rar правым кликом (WinRAR/7-Zip), затем:
+mkdir profile
+xcopy /E /I /Y DungeonShooter_backup\files profile\files
+xcopy /E /I /Y DungeonShooter_backup\shared_prefs profile\shared_prefs
+python tools\sk_save_editor.py list .\profile
+```
+
+Дальше все шаги §2–§4 идентичны; для заливки (§5) всё равно нужен adb.
 
 ## 2. Осмотреться
 
 ```bat
 python tools\sk_save_editor.py list .\profile
-python tools\sk_save_editor.py preset .\profile\game.data currencies
-python tools\sk_prefs.py info .\profile\com.ChillyRoom.DungeonShooter.v2.playerprefs.xml
+python tools\sk_save_editor.py preset .\profile\files\game.data currencies
+python tools\sk_prefs.py info .\profile\shared_prefs\com.ChillyRoom.DungeonShooter.v2.playerprefs.xml
 ```
 
 ## 3. Патчим `.data` (пресеты редактора)
 
+**Важно: у секций две копии** — `<sec>.data` (легаси) и
+`<sec>_<accountId>_.data` (каноническая, именно её пишет игра; в метадате
+литералы `_<accountId>_`). Правь ОБЕ одинаково — тогда неважно, какую
+читает твоя сборка. Исключения: `game.data` существует только без uid,
+`battles_*`/`escape_run_save_*` — только с uid. Файлы `.data.new` не
+трогаем (временные, push сам их почистит на устройстве).
+
 «Надолго, но не горы» (каждая правка показывает диф и пишет бэкап;
-`--yes` — без вопросов):
+`--yes` — без вопросов; ниже accountId 235288966 — замени на свой,
+он в выводе `info`):
 
 ```bat
 :: алмазы: gems = lastGems = N, varGems = 0, cumulativeGems += — леджер согласован
-python tools\sk_save_editor.py preset .\profile\game.data gems 50000 --yes
+python tools\sk_save_editor.py preset .\profile\files\game.data gems 50000 --yes
 
-:: рыбные чипы и монеты сезона
-python tools\sk_save_editor.py preset .\profile\game.data fish-chips 20000 --yes
-python tools\sk_save_editor.py preset .\profile\season_data.data season-coins 30000 --yes
+:: рыбные чипы и монеты сезона (обе копии season_data)
+python tools\sk_save_editor.py preset .\profile\files\game.data fish-chips 20000 --yes
+python tools\sk_save_editor.py preset .\profile\files\season_data.data season-coins 30000 --yes
+python tools\sk_save_editor.py preset .\profile\files\season_data_235288966_.data season-coins 30000 --yes
 
 :: герои, скиллы, питомцы
-python tools\sk_save_editor.py preset .\profile\game.data unlock-heroes --yes
-python tools\sk_save_editor.py preset .\profile\game.data heroes-level 8 --yes
-python tools\sk_save_editor.py preset .\profile\game.data unlock-pets --yes
+python tools\sk_save_editor.py preset .\profile\files\game.data unlock-heroes --yes
+python tools\sk_save_editor.py preset .\profile\files\game.data heroes-level 8 --yes
+python tools\sk_save_editor.py preset .\profile\files\game.data unlock-pets --yes
 
-:: крафт: все чертежи + материалы/семена (только те, что уже есть в сейве)
-python tools\sk_save_editor.py preset .\profile\item_data.data research-all --yes
-python tools\sk_save_editor.py preset .\profile\item_data.data all-materials 499 --yes
-python tools\sk_save_editor.py preset .\profile\item_data.data all-seeds 99 --yes
+:: крафт: все чертежи + материалы/семена (только те, что уже есть в сейве;
+:: если materials/seeds пусты — пресет честно откажется, это норма)
+python tools\sk_save_editor.py preset .\profile\files\item_data.data research-all --yes
+python tools\sk_save_editor.py preset .\profile\files\item_data.data all-materials 499 --yes
+python tools\sk_save_editor.py preset .\profile\files\item_data.data all-seeds 99 --yes
+python tools\sk_save_editor.py preset .\profile\files\item_data_235288966_.data research-all --yes
+python tools\sk_save_editor.py preset .\profile\files\item_data_235288966_.data all-materials 499 --yes
+python tools\sk_save_editor.py preset .\profile\files\item_data_235288966_.data all-seeds 99 --yes
 
 :: карта возрождения (gameData.rebornCard + restoreKeys)
-python tools\sk_save_editor.py preset .\profile\game.data reborn-card --yes
+python tools\sk_save_editor.py preset .\profile\files\game.data reborn-card --yes
 
 :: проверить итог
-python tools\sk_save_editor.py preset .\profile\game.data currencies
+python tools\sk_save_editor.py preset .\profile\files\game.data currencies
 ```
 
 Справка по всем пресетам: `python tools\sk_save_editor.py presets`.
@@ -76,7 +111,7 @@ python tools\sk_save_editor.py preset .\profile\game.data currencies
 ## 4. Патчим prefs.xml (вторая половина сэйва)
 
 ```bat
-set PREFS=.\profile\com.ChillyRoom.DungeonShooter.v2.playerprefs.xml
+set PREFS=.\profile\shared_prefs\com.ChillyRoom.DungeonShooter.v2.playerprefs.xml
 
 :: леджер гемов: gems=last_gems=50000, var_gems=0, cumulative=max(old,50000), LOCALlast_gems
 python tools\sk_prefs.py gems %PREFS% 50000 --yes
@@ -97,7 +132,7 @@ python tools\sk_prefs.py set %PREFS% 235288966_reborn_card 10 --yes
 
 * Номер аккаунта (235288966) замени на свой — он в выводе `info`.
 * `room_level` продублируй в game.data, если хочешь то же значение там:
-  `python tools\sk_save_editor.py write .\profile\game.data roomLevel 9 --yes`
+  `python tools\sk_save_editor.py write .\profile\files\game.data roomLevel 9 --yes`
 * Не трогай: `cloudSaveId*`, `Sdk*Cache*`, `UsedAccounts*`, `unity.*`,
   `has_*_data` (при живых `.data`-файлах).
 
@@ -108,8 +143,11 @@ python tools\sk_save_editor.py push .\profile --kill --adb "D:\LDPlayer\LDPlayer
 ```
 
 Push делает страховочный tar текущего профиля на устройстве
-(`/data/local/tmp/sk_pre_backup_<ts>.tar`), заливает каталог (включая prefs),
-восстанавливает владельца файлов.
+(`/data/local/tmp/sk_pre_backup_<ts>.tar`), заливает каталог (включая prefs,
+`.data.new` из профиля НЕ заливает), восстанавливает владельца файлов и
+**удаляет временные `*.data.new` на устройстве** — иначе игра при первом
+запуске может откатить ими свежезаписанные `.data`. Отключить: `--keep-new`
+(не рекомендуется).
 
 ## 6. Первый запуск — важное
 
@@ -141,5 +179,19 @@ Push делает страховочный tar текущего профиля �
 «заработанными» (паки 800/5000/12000/25000/35000/76000/115000):
 
 ```bat
-python tools\sk_save_editor.py write .\profile\mall_reload_data.data buyGemCount5000 10 --yes
+python tools\sk_save_editor.py write .\profile\files\mall_reload_data.data buyGemCount5000 10 --yes
+python tools\sk_save_editor.py write .\profile\files\mall_reload_data_235288966_.data buyGemCount5000 10 --yes
 ```
+
+## 8. Troubleshooting (LDPlayer/Windows)
+
+| Симптом | Причина / что делать |
+|---|---|
+| `can't open file ... sk_save_editor.py` | ты не в каталоге с тулзой. Скрипты лежат в репо (`tools\`); запускай из корня репо или укажи полный путь |
+| `adb: устройство не найдено` | `D:\LDPlayer\LDPlayer14\adb.exe devices` — пусто? Выполни `adb connect 127.0.0.1:5554` (порт — из заголовка окна эмулятора: 5554/5555/5556…) |
+| `нет root` | В настройках LDPlayer включи Root-права; проверка: `adb shell su -c id` → `uid=0(root)` (у тебя уже включён — ок) |
+| pull отдал только 2–3 файла | Это старый баг tar-потока (исправлен в этой версии): перескачай `sk_save_editor.py` из репо и повтори; при повторении — `--debug` |
+| `adb pull /data/data/...` даёт `0 files pulled` | Норма: shell-пользователь не имеет доступа к `/data/data` — нужен root-pull (наш скрипт) |
+| `find: bad arg '...'` в ручных командах | Кавычки съедаются PowerShell/adb при передаче глобов (`*data*`); в скрипте глобов нет — используй его |
+| playerprefs «UTF-8/ASCII» в `info`, а раньше был UTF-16 | На устройстве файл UTF-8; UTF-16LE+BOM — артефакт PowerShell-редиректа при ручном `adb shell ... > file`. Обе кодировки теперь читаются автоматически |
+| После push правки слетели | (а) игра была запущена при push — повтори с `--kill`; (б) игра подтянула облако — первый запуск офлайн (§6); (в) вручную удали `*.data.new`: `adb shell "su -c 'rm /data/data/com.ChillyRoom.DungeonShooter/files/*.data.new'"` и перезалей |

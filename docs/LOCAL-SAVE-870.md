@@ -394,6 +394,38 @@ python tools\sk_save_editor.py push
 чтобы форсировать флеш — зайти в игру, подёргать меню/прогресс, выйти ЧЕРЕЗ
 меню игры (graceful save), и только потом `pull --kill`.
 
+### 6.4. Почему pull отдавал только 3 файла, и как починен (12.11.2026)
+
+Симптом: `pull` рапортовал `[ok] (1+ файлов)`, но в `profile/files/`
+оказывались ровно `bugly_last_us_up_tm`, `monsrise_data_<acc>_.data.new`,
+`statistic.data` — воспроизводимо на 3 попытках за день, при том что
+`find` на устройстве показывает ~50 файлов в `files/`.
+
+Причина: pull строил `tar -cf - -C /data/data/<pkg> files shared_prefs`
+через `exec-out su -c` и распарсивал поток локально. На LDPlayer (старый
+adb ~1.0.31 + su) бинарный поток обрывался; `tarfile` молча вытаскивал
+первые валидные members, ветка считала `ok=True`, fallback на per-file
+не запускался. Отдельно ручные `find -name "*data*"` через adb ломаются
+об кавычки PowerShell (`find: bad arg ...` — глоб разворачивается на
+устройстве).
+
+Фикс (текущая версия редактора):
+- pull — **по-файлово, `base64` через exec-out** (текст, не портится PTY),
+  список — `find <dir> -maxdepth 1 -type f` без кавычек и глобов;
+  счётчики `files/` и `shared_prefs/`, sanity-проверка на <10 `*.data`,
+  флаг `--debug` (каждый файл и размер).
+- push — `.data.new` из профиля не заливает и **удаляет временные
+  `*.data.new` на устройстве** (иначе первый запуск может откатить ими
+  свежие `.data`); отключается `--keep-new`.
+- sk_prefs.py читает playerprefs и в UTF-8/ASCII (на устройстве файл
+  UTF-8 без BOM; UTF-16LE+BOM — артефакт PowerShell-редиректа).
+- План Б без adb: бэкап приложения средствами LDPlayer (`<app>_backup.rar`,
+  внутри `files/` + `shared_prefs/`) → распаковать → `profile/` (GUIDE §1.1).
+
+Проверено на mock-adb (скрипты/mock_adb.py): полный круг
+pull → preset gems → push → состояние устройства (gems 70000, `.new` снят,
+prefs-леджер согласован) и все failure-ветки (нет устройства/root/base64).
+
 ## 7. Инструменты и статус
 
 | Артефакт | Что делает |
