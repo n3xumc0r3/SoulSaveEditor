@@ -123,13 +123,14 @@ python tools\sk_save_editor.py preset .\profile\files\game.data reborn-card --ye
 python tools\sk_save_editor.py preset .\profile\files\game.data currencies
 ```
 
-### 3.1. Полный набор для ПУСТОГО аккаунта (v1.2.0) — строго в этом порядке
+### 3.1. Полный набор для ПУСТОГО аккаунта (v1.3.0) — строго в этом порядке
 
-Уроки боевого прогона 12.11 (уровни героев/скины/материалы «не применились»):
+Уроки боевых прогонов 12.11–13.11:
 
 1. **Сейв = две половины** (`.data` + playerprefs). Уровни героев и скины игра
    держит ещё и в prefs (`<UID>_cN_level`, `<UID>_cN_skinN`) — патч только
-   `game.data` даёт «все герои 1 уровня, скинов 0».
+   `game.data` даёт «все герои 1 уровня, скинов 0». **Обе тулзы нужно скачать
+   заново** (v1.3.0): в старом sk_prefs.py нет `unlock-levels`/`unlock-skins`.
 2. **Rij-канал**: если `setting.data UseRijData=true` (или в prefs
    `OpenRijTest_<UID>=1`), секции Rij-группы (item_data, monsrise, misc, pvp,
    task, bp, mall_reload) читаются/пишутся через Rij-путь — правки обычных
@@ -137,6 +138,13 @@ python tools\sk_save_editor.py preset .\profile\files\game.data currencies
 3. **Копии секции**: правь обе сразу флагом `--all-copies` (легаси-`item_data.data`
    + UID-`item_data_235288966_.data`) — какая из копий читается этой сборкой,
    заранее не знает никто; `doctor` покажет расхождение.
+4. **Счётчики статистики — словари по РЕЖИМАМ** (`Any`/`Normal`/`Season`),
+   а не по героям: формат снят с топ-сейва (`_enterDungeonTimes
+   {"Any":123,"Normal":107,...}`). Пресет v1.3.0 `dungeon-times` пишет правильные
+   ключи (в 1.2.0 формат был неверный — гейты «сыграй 3 раза» не срабатывали).
+5. **Привязанность питомцев** лежит в `statistic.data` → `event2Count`
+   (`pet_5_intimacy=240`, `pet_5_full_intimacy=1`, `pet_5_action_unlock=1`;
+   `pet_full_intimacy` = число питомцев с полным уровнем). Пресет `pets-intimacy`.
 
 ```bat
 :: 0) СВЕЖИЙ pull (профиль на диске мог устареть после последнего запуска игры)
@@ -162,10 +170,33 @@ python tools\sk_save_editor.py preset .\profile\files\game.data gems 50000 --yes
 python tools\sk_save_editor.py preset .\profile\files\game.data fish-chips 1999 --yes
 python tools\sk_save_editor.py preset .\profile\files\game.data reborn-card --yes
 
-:: 4) счётчики «сыграйте в режиме уровня 3 раза» (гейты стендов/мастерской) — эксперимент
+:: 4) статистика: «сыграй в режиме уровня» + привязанность питомцев (эксперимент)
 python tools\sk_save_editor.py preset .\profile\files\statistic.data dungeon-times 5 --yes
+python tools\sk_save_editor.py preset .\profile\files\statistic.data pets-intimacy 300 --yes
 python tools\sk_save_editor.py preset .\profile\files\game.data room-unlock --yes
+
+:: 5) эволюция оружия: фрагменты (UpdateMaterialCount) + скины (эксперимент; N SKINS)
+python tools\sk_save_editor.py preset .\profile\files\weapon_evolution_data_235288966_.data weapon-evol 999 10 --all-copies --yes
+
+:: 6) сезон «защитники» (Troop2): скиллы отряда + сложность (эксперимент)
+python tools\sk_save_editor.py preset .\profile\files\season_data_235288966_.data troop2-open --all-copies --yes
 ```
+
+**Про «защитников» (наемников Troop2)**: карточки закрываются «покупкой» в
+магазине режима — список купленных лежит в `seasonData.troop2BoughtMercenary`.
+На свежем аккаунте он `{}`, а id наемников нигде в дампах не видны — их НЕЛЬЗЯ
+выдумывать. План: зайди в режим один раз, купи ЛЮБОГО наемника за монеты
+сезона (они уже выданы), закрой игру, pull — и пришли мне вывод
+`python tools\sk_save_editor.py dump .\profile\files\season_data_235288966_.data`
+(только поле troop2BoughtMercenary). По реальным id дополню `troop2-open`
+(`--ids-file файл.json` с `{"troop2_mercenaries": [...]}` уже поддержан).
+
+**Про облики оружия**: модель записи снята с облачного DTO (`WUWeapon`:
+Name/Level/CurrentSkinId/UnlockedSkins/ModuleSlots/UpdateMaterialCount),
+каталог 353 реальных id weapon_NNN — из топ-сейва. Структура локального
+`weapons` (список/словарь) угадывается по обоим вариантам — если после
+weapon-evol игра падает на загрузке, сделай `rescue` и пришли мне вывод
+`dump` твоего weapon_evolution_data — подгоню формат по факту.
 
 ### 3.2. prefs-половина (v1.2.0: уровни и скины героев тоже здесь)
 
@@ -281,12 +312,16 @@ python tools\sk_save_editor.py doctor -p .\profile --adb "D:\LDPlayer\LDPlayer14
 | Что | Значение | Где |
 |---|---|---|
 | Алмазы | 50 000 | game.data + prefs |
-| Рыбные чипы | 20 000 | game.data |
+| Рыбные чипы | 20 000 | game.data (+ fish-total в item_data — подарочная дорожка) |
 | Монеты сезона | 30 000 | season_data |
-| Герои | все, уровень 8 | game.data + prefs |
+| Герои | все, уровень 8 | game.data + prefs (обязательно!) |
 | Скиллы | все = 1 | prefs |
+| Скины героев | все Value=1 | game.data + prefs |
 | Питомцы | все | game.data |
-| Материалы | 499 | item_data |
+| Привязанность питомцев | 300 (полная) + action_unlock | statistic.data `pets-intimacy` |
+| «Сыграй в режиме уровня N раз» | 5 | statistic.data `dungeon-times` |
+| Фрагменты эволюции оружия | 999 на оружие | weapon_evolution_data `weapon-evol` |
+| Материалы (вкл. осколки древнего оружия) | 499 | item_data grant-all |
 | Семена | 99 | item_data |
 | Комната | уровень 9 | prefs (+game.data roomLevel) |
 | Карта возрождения | да (10) | game.data + prefs |
@@ -317,5 +352,8 @@ python tools\sk_save_editor.py write .\profile\files\mall_reload_data_235288966_
 | playerprefs «UTF-8/ASCII» в `info`, а раньше был UTF-16 | На устройстве файл UTF-8; UTF-16LE+BOM — артефакт PowerShell-редиректа при ручном `adb shell ... > file`. Обе кодировки теперь читаются автоматически |
 | После push правки слетели | (а) игра была запущена при push — повтори с `--kill`; (б) игра подтянула облако — первый запуск офлайн (§6); (в) вручную удали `*.data.new`: `adb shell "su -c 'rm /data/data/com.ChillyRoom.DungeonShooter/files/*.data.new'"` и перезалей |
 | Материалы/рыба в item_data не появились в игре (хоть push сошёлся md5) | Классика 12.11: Rij-канал читает item_data мимо наших файлов. `doctor -p .\profile` покажет `UseRijData` и содержимое КАЖДОЙ копии прямо на устройстве. Лечение: `preset setting.data rij-legacy` + `sk_prefs.py rij-off` + пресеты item_data с `--all-copies` (§3.1) |
-| Герои открыты, но все 1 уровня; скинов 0 | Патчили только game.data — уровни и скины живут ещё и в prefs (`cN_level`, `cN_skinN`). Прогони §3.2: `unlock-levels 8 --extend` + `unlock-skins` + `grant-heroes-levels 8` + `grant-skins` |
+| Герои открыты, но все 1 уровня; скинов 0 | Патчили только game.data — уровни и скины живут ещё и в prefs (`cN_level`, `cN_skinN`). Прогони §3.2: `unlock-levels 8 --extend` + `unlock-skins` + `grant-heroes-levels 8` + `grant-skins`. ВАЖНО: если в твоём sk_prefs.py нет `unlock-levels` — файл старый, скачай v1.3.0 заново (это и была причина «уровней 1» в прогоне 12.11) |
+| «Сыграй в режиме уровня» не засчитывается | В 1.2.0 `dungeon-times` писал счётчики по героям — а игра читает словари по РЕЖИМАМ (Any/Normal). Обнови sk_save_editor.py до v1.3.0 и повтори |
+| Привязанность питомцев 0 | Она в statistic.data → event2Count (`pet_N_intimacy/full_intimacy/action_unlock`), не в game.data/prefs. v1.3.0: `preset statistic.data pets-intimacy 300 --yes` |
+| «Защитники» (Troop2) закрыты | Скиллы/сложность/отряд — `preset season_data_*_.data troop2-open --all-copies --yes`. Самих наемников пока только покупать за монеты сезона (id собираем с устройства — см. §3.1) |
 | doctor: «копии item_data РАСХОДЯТСЯ» | Правка легла только в одну копию секции — игра может читать другую. Все item_data-пресеты запускай с `--all-copies` |

@@ -63,7 +63,7 @@ except ImportError:  # pragma: no cover
     AES = DES = None
 
 PKG = "com.ChillyRoom.DungeonShooter"
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 
 # ---------------------------------------------------------------------------
 # 1. Крипто-константы (литералы из игры/метадаты, REVERSING.md §3.2, §4)
@@ -976,10 +976,24 @@ _IDS_870_JSON = r'''{
   }
 }'''
 
+# Каталог id оружия 8.7.0 для weapon-evol: все weapon_NNN, встреченные в
+# облачном топ-сейве (itemData.forgeWeapons, WeaponGameStatisticData
+# ._weaponUsedTimes и др.) — 353 реальных id, ни один не выдуман.
+_WEAPON_IDS_870_JSON = r'''["weapon_000","weapon_001","weapon_002","weapon_003","weapon_004","weapon_005","weapon_006","weapon_007","weapon_008","weapon_009","weapon_010","weapon_011","weapon_012","weapon_013","weapon_014","weapon_015","weapon_016","weapon_017","weapon_018","weapon_019","weapon_020","weapon_021","weapon_022","weapon_023","weapon_024","weapon_025","weapon_026","weapon_027","weapon_028","weapon_029","weapon_030","weapon_031","weapon_032","weapon_033","weapon_034","weapon_035","weapon_036","weapon_037","weapon_038","weapon_039","weapon_040","weapon_041","weapon_042","weapon_043","weapon_044","weapon_045","weapon_046","weapon_047","weapon_048","weapon_049","weapon_050","weapon_051","weapon_052","weapon_053","weapon_054","weapon_055","weapon_056","weapon_057","weapon_058","weapon_059","weapon_060","weapon_061","weapon_062","weapon_063","weapon_064","weapon_065","weapon_066","weapon_067","weapon_068","weapon_069","weapon_070","weapon_071","weapon_072","weapon_073","weapon_074","weapon_075","weapon_076","weapon_077","weapon_078","weapon_079","weapon_080","weapon_081","weapon_082","weapon_083","weapon_084","weapon_085","weapon_086","weapon_087","weapon_088","weapon_089","weapon_090","weapon_091","weapon_092","weapon_093","weapon_094","weapon_095","weapon_096","weapon_097","weapon_098","weapon_099","weapon_100","weapon_101","weapon_102","weapon_103","weapon_104","weapon_105","weapon_106","weapon_107","weapon_108","weapon_109","weapon_110","weapon_111","weapon_112","weapon_113","weapon_114","weapon_115","weapon_116","weapon_117","weapon_118","weapon_119","weapon_120","weapon_121","weapon_122","weapon_123","weapon_124","weapon_125","weapon_126","weapon_127","weapon_128","weapon_129","weapon_130","weapon_131","weapon_132","weapon_133","weapon_134","weapon_135","weapon_136","weapon_137","weapon_138","weapon_139","weapon_140","weapon_141","weapon_142","weapon_143","weapon_144","weapon_145","weapon_146","weapon_147","weapon_148","weapon_149","weapon_150","weapon_151","weapon_152","weapon_153","weapon_154","weapon_155","weapon_156","weapon_157","weapon_158","weapon_159","weapon_160","weapon_161","weapon_162","weapon_163","weapon_164","weapon_165","weapon_166","weapon_167","weapon_168","weapon_169","weapon_170","weapon_171","weapon_172","weapon_173","weapon_174","weapon_175","weapon_176","weapon_177","weapon_178","weapon_179","weapon_180","weapon_181","weapon_182","weapon_183","weapon_184","weapon_185","weapon_186","weapon_187","weapon_188","weapon_189","weapon_190","weapon_191","weapon_192","weapon_193","weapon_194","weapon_195","weapon_196","weapon_197","weapon_198","weapon_199","weapon_200","weapon_201","weapon_202","weapon_203","weapon_204","weapon_205","weapon_206","weapon_207","weapon_208","weapon_209","weapon_210","weapon_211","weapon_212","weapon_213","weapon_214","weapon_215","weapon_216","weapon_217","weapon_218","weapon_219","weapon_220","weapon_221","weapon_222","weapon_223","weapon_224","weapon_230","weapon_231","weapon_233","weapon_234","weapon_235","weapon_236","weapon_237","weapon_238","weapon_239","weapon_240","weapon_241","weapon_242","weapon_243","weapon_244","weapon_245","weapon_246","weapon_247","weapon_248","weapon_249","weapon_250","weapon_251","weapon_252","weapon_253","weapon_254","weapon_255","weapon_256","weapon_257","weapon_258","weapon_259","weapon_260","weapon_261","weapon_264","weapon_265","weapon_266","weapon_267","weapon_268","weapon_270","weapon_273","weapon_274","weapon_275","weapon_276","weapon_277","weapon_278","weapon_279","weapon_280","weapon_281","weapon_282","weapon_283","weapon_284","weapon_285","weapon_286","weapon_287","weapon_288","weapon_289","weapon_290","weapon_291","weapon_292","weapon_293","weapon_294","weapon_295","weapon_296","weapon_297","weapon_298","weapon_299","weapon_300","weapon_301","weapon_302","weapon_303","weapon_304","weapon_305","weapon_306","weapon_307","weapon_308","weapon_309","weapon_310","weapon_311","weapon_312","weapon_313","weapon_314","weapon_315","weapon_316","weapon_317","weapon_318","weapon_319","weapon_320","weapon_321","weapon_322","weapon_323","weapon_324","weapon_325","weapon_326","weapon_327","weapon_328","weapon_329","weapon_330","weapon_331","weapon_332","weapon_333","weapon_334","weapon_335","weapon_336","weapon_337","weapon_338","weapon_339","weapon_340","weapon_341","weapon_342","weapon_343","weapon_344","weapon_345","weapon_346","weapon_347","weapon_348","weapon_349","weapon_350","weapon_351","weapon_352","weapon_353","weapon_354","weapon_355","weapon_356","weapon_357","weapon_358","weapon_359","weapon_900","weapon_901","weapon_902","weapon_903"]'''
+
+
+def _opt(opts, key, default=None):
+    """opts бывает dict (vars(args) из пресетов) и Namespace — поддержать оба."""
+    if opts is None:
+        return default
+    if isinstance(opts, dict):
+        return opts.get(key, default)
+    return getattr(opts, key, default)
+
 
 def _id_catalog(opts=None):
     cat = json.loads(_IDS_870_JSON)
-    custom = getattr(opts, "ids_file", None)
+    custom = _opt(opts, "ids_file")
     if custom:
         with open(custom, "r", encoding="utf-8") as f:
             extra = json.load(f)
@@ -1347,7 +1361,7 @@ def p_rij_legacy(doc, a, opts):
     return [("settingData.UseRijData", old, False)]
 
 
-@preset("dungeon-times", "N", "statistic: LevelGameStatisticData _enter/_finishDungeonTimes и _finishLevelTimes = {герой: N} — счётчики «сыграйте в режиме уровня N раз» (гейты стендов/мастерской)", experimental=True)
+@preset("dungeon-times", "N", "statistic: счётчики режима уровня -> N (ФОРМАТ ТОП-СЕЙВА: ключи-режимы Any/Normal/Season, а не герои!) — гейты «сыграйте в режиме уровня N раз»", experimental=True)
 def p_dungeon_times(doc, a, opts):
     if doc.cls != "StatisticData":
         raise RuntimeError("dungeon-times — пресет для statistic.data (класс StatisticData), а тут %s" % (doc.cls or "?"))
@@ -1361,16 +1375,160 @@ def p_dungeon_times(doc, a, opts):
         st["LevelGameStatisticData"] = lg
     n = max(1, int(a[0]))
     changes = []
-    for fld in ("_enterDungeonTimes", "_finishDungeonTimes", "_finishLevelTimes"):
+
+    def bump(fld, keys, val):
         d = lg.get(fld)
         if not isinstance(d, dict):
             d = {}
             lg[fld] = d
-        for h in _HEROES_870:
-            if d.get(h) != n:
-                changes.append(("StatisticsData.LevelGameStatisticData.%s[%s]" % (fld, h),
-                                d.get(h, "<создан>"), n))
-            d[h] = n
+        for k in keys:
+            cur = d.get(k) or 0
+            want = val if not isinstance(cur, int) else max(cur, val)
+            if cur != want:
+                changes.append(("StatisticsData.LevelGameStatisticData.%s[%s]" % (fld, k),
+                                cur, want))
+                d[k] = want
+
+    # Формат ключей — из реального топ-сейва (LevelGameStatisticData):
+    # _enterDungeonTimes {"ARAM":14,"Any":123,"Any#MultiGame":2,"BossRush":2,
+    #                     "MultiGame#Normal":2,"Normal":107,"Season":11},
+    # _finishDungeonTimes {"Any":3,"Normal":3},
+    # _finishLevelTimes {"Any#0":81,"Any#1":56,"ARAM#0":6,...,"Normal#0":..},
+    # _highestLevelArrived {"Any":15,"BossRush":6,"Normal":15}.
+    # Гейты «сыграйте в режиме уровня 3 раза» читают именно эти словари.
+    bump("_enterDungeonTimes", ["Any", "Normal", "Season", "ARAM", "BossRush"], n)
+    bump("_finishDungeonTimes", ["Any", "Normal"], n)
+    bump("_finishLevelTimes",
+         ["Any#0", "Any#1", "Any#2", "Normal#0", "Normal#1", "Normal#2"], n)
+    bump("_highestLevelArrived", ["Any", "Normal", "BossRush"], 15)
+    return changes
+
+
+@preset("pets-intimacy", "N", "statistic: привязанность ВСЕХ питомцев -> N (event2Count pet_i_intimacy/full_intimacy/action_unlock — форма из топ-сейва; 240 = полный у большинства, 300 покрывает всех)", experimental=True)
+def p_pets_intimacy(doc, a, opts):
+    if doc.cls != "StatisticData":
+        raise RuntimeError("pets-intimacy — пресет для statistic.data (класс StatisticData), а тут %s" % (doc.cls or "?"))
+    n = int(a[0]) if a else 300
+    ev = doc.obj.get("event2Count")
+    if not isinstance(ev, dict):
+        ev = {}
+        doc.obj["event2Count"] = ev
+    changes = []
+    n_pets = 36  # 0..35 — диапазон, виденный в топ-сейве (pet_0..pet_35)
+    for i in range(n_pets):
+        for suf, val in (("intimacy", n), ("full_intimacy", 1), ("action_unlock", 1)):
+            key = "pet_%d_%s" % (i, suf)
+            if ev.get(key) != val:
+                changes.append(("statistic.event2Count[%s]" % key, ev.get(key, "<создан>"), val))
+                ev[key] = val
+    if (ev.get("pet_full_intimacy") or 0) < n_pets:
+        changes.append(("statistic.event2Count[pet_full_intimacy]",
+                        ev.get("pet_full_intimacy", "<создан>"), n_pets))
+        ev["pet_full_intimacy"] = n_pets
+    return changes
+
+
+@preset("weapon-evol", "N", "фрагменты эволюции оружия -> N (WeaponEvolutionData.weapons: UpdateMaterialCount; синтез по форме облачного WUWeapon Name/Level/CurrentSkinId/UnlockedSkins/ModuleSlots/UpdateMaterialCount; 2-й аргумент — скинов на оружие, по умолч. 10)", experimental=True)
+def p_weapon_evol(doc, a, opts):
+    if not (doc.cls or "").endswith("WeaponEvolutionData"):
+        raise RuntimeError("weapon-evol — пресет для weapon_evolution_data*.data (класс WeaponEvolutionData), а тут %s" % (doc.cls or "?"))
+    n = int(a[0])
+    skins = int(a[1]) if len(a) > 1 else 10
+    wp = doc.obj.get("weapons")
+    changes = []
+    catalog = json.loads(_WEAPON_IDS_870_JSON)
+
+    def want_entry(wid):
+        return {"Name": wid, "Level": 0, "CurrentSkinId": 0,
+                "UnlockedSkins": list(range(max(1, skins))),
+                "ModuleSlots": [], "UpdateMaterialCount": n}
+
+    if isinstance(wp, dict):
+        # словарь {weapon_id: {...}} — обновляем существующие, досоздаём из каталога
+        for wid in sorted(set(list(wp.keys()) + catalog)):
+            cur = wp.get(wid)
+            if not isinstance(cur, dict):
+                changes.append(("weapons[%s]" % wid, "<создан>", "UpdateMaterialCount=%d, UnlockedSkins<=%d" % (n, skins)))
+                wp[wid] = want_entry(wid)
+                continue
+            if (cur.get("UpdateMaterialCount") or 0) < n:
+                changes.append(("weapons[%s].UpdateMaterialCount" % wid,
+                                cur.get("UpdateMaterialCount"), n))
+                cur["UpdateMaterialCount"] = n
+            us = cur.get("UnlockedSkins")
+            if isinstance(us, list) and len(us) < skins:
+                have = {x for x in us if isinstance(x, int)}
+                add = [i for i in range(skins) if i not in have]
+                changes.append(("weapons[%s].UnlockedSkins" % wid, len(us), len(us) + len(add)))
+                us.extend(add)
+    else:
+        if not isinstance(wp, list):
+            wp = []
+            doc.obj["weapons"] = wp
+        by_name = {e.get("Name"): e for e in wp if isinstance(e, dict) and e.get("Name")}
+        for wid in catalog:
+            cur = by_name.get(wid)
+            if cur is None:
+                entry = want_entry(wid)
+                wp.append(entry)
+                changes.append(("weapons += %s" % wid, "<создан>",
+                                "UpdateMaterialCount=%d, UnlockedSkins<=%d" % (n, skins)))
+                continue
+            if (cur.get("UpdateMaterialCount") or 0) < n:
+                changes.append(("weapons[%s].UpdateMaterialCount" % wid,
+                                cur.get("UpdateMaterialCount"), n))
+                cur["UpdateMaterialCount"] = n
+            us = cur.get("UnlockedSkins")
+            if isinstance(us, list) and len(us) < skins:
+                have = {x for x in us if isinstance(x, int)}
+                add = [i for i in range(skins) if i not in have]
+                changes.append(("weapons[%s].UnlockedSkins" % wid, len(us), len(us) + len(add)))
+                us.extend(add)
+    return changes
+
+
+@preset("troop2-open", "", "сезон «защитники» (Troop2): 5 скиллов=true, сложность/размер отряда вверх; id наемников — только из --ids-file или уже купленных (не выдумываем)", experimental=True)
+def p_troop2_open(doc, a, opts):
+    if doc.cls != "SeasonData":
+        raise RuntimeError("troop2-open — пресет для season_data*.data (класс SeasonData), а тут %s" % (doc.cls or "?"))
+    changes = []
+    for f in ("hasUnlockTroop2SkillHaste", "hasUnlockTroop2SkillFrostBurst",
+              "hasUnlockTroop2SkillShield", "hasUnlockTroop2SkillPowerUp",
+              "hasUnlockTroop2SkillBonus"):
+        if doc.obj.get(f) is not True:
+            changes.append(("seasonData.%s" % f, doc.obj.get(f, "<создан>"), True))
+            doc.obj[f] = True
+    for f, v in (("troop2UnlockedDifficulty", 3), ("troop2ExtraTeamSize", 4),
+                 ("troop2MaxExtraTeamSize", 4), ("troop2MaxExtraHeroSeatCount", 4)):
+        cur = doc.obj.get(f) or 0
+        if cur < v:
+            changes.append(("seasonData.%s" % f, cur, v))
+            doc.obj[f] = v
+    bm = doc.obj.get("troop2BoughtMercenary")
+    if not isinstance(bm, dict):
+        bm = {}
+        doc.obj["troop2BoughtMercenary"] = bm
+    ids = _opt(opts, "troop2_ids") or []
+    if not ids:
+        # --ids-file: {"troop2_mercenaries": ["0","1",...]} — id только из реальных данных
+        custom = _opt(opts, "ids_file")
+        if custom:
+            with open(custom, "r", encoding="utf-8") as f:
+                extra = json.load(f)
+            ids = extra.get("troop2_mercenaries") or []
+            if ids:
+                print("[i] troop2 наемники из %s: %s" % (custom, ids))
+    if ids:
+        for mid in ids:
+            if bm.get(str(mid)) in (None, False, 0):
+                changes.append(("seasonData.troop2BoughtMercenary[%s]" % mid,
+                                bm.get(str(mid), "<создан>"), 1))
+                bm[str(mid)] = 1
+    else:
+        for k, v in list(bm.items()):
+            if v in (False, 0, None):
+                changes.append(("seasonData.troop2BoughtMercenary[%s]" % k, v, 1))
+                bm[k] = 1
     return changes
 
 
@@ -2293,10 +2451,66 @@ def cmd_selftest(args):
     dst_ = load_doc(fst)
     run_preset(dst_, "dungeon-times", ["5"], {})
     lg = dst_.obj["StatisticsData"]["LevelGameStatisticData"]
-    check("dungeon-times: счётчики по героям",
-          all(lg[f][h] == 5 for f in ("_enterDungeonTimes", "_finishDungeonTimes", "_finishLevelTimes")
-              for h in _HEROES_870))
+    check("dungeon-times: ключи-РЕЖИМЫ (формат топ-сейва)",
+          lg["_enterDungeonTimes"]["Any"] == 5 and lg["_enterDungeonTimes"]["Normal"] == 5
+          and lg["_finishDungeonTimes"]["Any"] == 5
+          and lg["_finishLevelTimes"]["Any#0"] == 5 and lg["_finishLevelTimes"]["Normal#2"] == 5
+          and lg["_highestLevelArrived"]["Any"] == 15,
+          json.dumps(lg["_enterDungeonTimes"], ensure_ascii=False))
+    run_preset(dst_, "pets-intimacy", ["300"], {})
+    ev = dst_.obj["event2Count"]
+    check("pets-intimacy: pet_0..35 intimacy/full/action",
+          ev["pet_0_intimacy"] == 300 and ev["pet_35_full_intimacy"] == 1
+          and ev["pet_10_action_unlock"] == 1 and ev["pet_full_intimacy"] == 36,
+          "event2Count=%d ключей pet_*" % len([k for k in ev if k.startswith("pet_")]))
     save_doc(dst_, verify=True)
+
+    # --- 13b) weapon-evol (список и словарь weapons) + troop2-open ---
+    fwe = os.path.join(tmp, "weapon_evolution_data.data")
+    with open(fwe, "wb") as f:
+        f.write(encode_any({"weapons": [], "blindBoxOpenCount0": 0, "favorWeapons": []},
+                           "utf8", "des-default", prefs))
+    dwe = load_doc(fwe)
+    check("weapon_evolution класс", (dwe.cls or "").endswith("WeaponEvolutionData"), str(dwe.cls))
+    run_preset(dwe, "weapon-evol", ["999", "12"], {})
+    wlist = dwe.obj["weapons"]
+    check("weapon-evol: список из %d записей каталога" % len(json.loads(_WEAPON_IDS_870_JSON)),
+          isinstance(wlist, list) and len(wlist) == len(json.loads(_WEAPON_IDS_870_JSON))
+          and wlist[0]["Name"] == "weapon_000" and wlist[0]["UpdateMaterialCount"] == 999
+          and wlist[0]["UnlockedSkins"] == list(range(12)),
+          "weapons=%d" % len(wlist))
+    save_doc(dwe, verify=True)
+    fwe2 = os.path.join(tmp, "weapon_evolution_data_235288966_.data")
+    with open(fwe2, "wb") as f:
+        f.write(encode_any({"weapons": {"weapon_001": {"Name": "weapon_001", "Level": 3,
+                                                       "CurrentSkinId": 1, "UnlockedSkins": [0, 1],
+                                                       "ModuleSlots": [], "UpdateMaterialCount": 5}}},
+                           "utf8", "des-default", prefs))
+    dwe2 = load_doc(fwe2)
+    run_preset(dwe2, "weapon-evol", ["999", "12"], {})
+    wd = dwe2.obj["weapons"]
+    check("weapon-evol: словарь — апдейт + досоздание",
+          wd["weapon_001"]["UpdateMaterialCount"] == 999
+          and wd["weapon_001"]["UnlockedSkins"] == list(range(12))
+          and wd["weapon_002"]["UpdateMaterialCount"] == 999
+          and len(wd) == len(json.loads(_WEAPON_IDS_870_JSON)),
+          "weapons=%d" % len(wd))
+    save_doc(dwe2, verify=True)
+    fsd = os.path.join(tmp, "season_data.data")
+    with open(fsd, "wb") as f:
+        f.write(encode_any({"coin": 0, "troop2BoughtMercenary": {"7": 1}},
+                           "utf8", "des-default", prefs))
+    dsd = load_doc(fsd)
+    check("season_data класс", dsd.cls == "SeasonData", str(dsd.cls))
+    run_preset(dsd, "troop2-open", [], {})
+    check("troop2-open: скиллы+сложность+отряд",
+          dsd.obj["hasUnlockTroop2SkillHaste"] is True
+          and dsd.obj["hasUnlockTroop2SkillBonus"] is True
+          and dsd.obj["troop2UnlockedDifficulty"] == 3
+          and dsd.obj["troop2ExtraTeamSize"] == 4
+          and dsd.obj["troop2BoughtMercenary"] == {"7": 1},
+          json.dumps({k: v for k, v in dsd.obj.items() if "troop2" in k}, ensure_ascii=False)[:120])
+    save_doc(dsd, verify=True)
 
     # --- 14) --all-copies: находим обе копии item_data ---
     sibs = _section_siblings(fitem)  # fitem = <tmp>/item_data.data
