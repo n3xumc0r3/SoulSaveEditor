@@ -21,3 +21,4 @@ snap_*
 skdump/
 SoulKnightCloud*.json
 *.pretty.json
+__pycache__/

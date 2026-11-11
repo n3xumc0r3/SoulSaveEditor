@@ -15,8 +15,11 @@ Based on **SKDEditor 3.8** by [HTCheater](https://github.com/HTCheater) — orig
 Reverse-engineering notes and tools for Soul Knight 8.7.0 save/cloud systems live in [`docs/`](docs/) and [`tools/`](tools/):
 
 - [`docs/REVERSING.md`](docs/REVERSING.md) — metadata decode, local save crypto, JSON-parser defaults, CRDE field map
+- [`docs/LOCAL-SAVE-870.md`](docs/LOCAL-SAVE-870.md) — how 8.7.0 stores/parses local saves: section file map, full field lists of 19 save classes, missing-field behavior
 - [`docs/CLOUD-SAVE.md`](docs/CLOUD-SAVE.md) — cloud save architecture (GPGS legacy + ChillyRoom cloud), ban/risk system
 - [`docs/CLOUD-DUMP-870.md`](docs/CLOUD-DUMP-870.md) — actual GPGS snapshot dump: cloud save is **plain UTF-16LE JSON**; cloud **write path proven** and **first real edit committed** (sha-verified, 11.11.2026)
+- [`docs/EDITOR.md`](docs/EDITOR.md) — quickstart for the flagship save editor
+- [`tools/sk_save_editor.py`](tools/sk_save_editor.py) — **flagship save editor**: adb pull/push of the game profile (root), auto-detects every crypto layer (plain JSON / UTF-16LE / legacy XOR game.data / DES `crst1`+`iambo` / SDK-DES / Rijndael-AES-256 with per-install keys from playerprefs), curated presets (gems with consistent ledger, unlock heroes/pets, research blueprints, max materials…), path-based edits, per-write backups + round-trip verification, protected-profile-field guards, built-in `selftest`
 - [`tools/`](tools/) — frida snapshot dump/read/write scripts, cloud-save JSON patcher, local-save decrypt/encrypt CLI (`sk_local_save.py`), decryptors, dump analyzers
 
 Personal save data (dumps, decodes) is **never** committed — see `.gitignore`.

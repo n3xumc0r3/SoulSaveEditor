@@ -303,8 +303,9 @@ hand_cut_index, manual_change_hand_cut_index, buy_good_times, ...
 
 | Артефакт | Что делает |
 |---|---|
+| **`tools/sk_save_editor.py`** | **флагманский редактор** (см. [EDITOR.md](EDITOR.md)): pull/push профиля по adb (root), автодетект всех криптосхем (JSON/UTF-16LE/XOR/DES/Rijndael-AES по ключам playerprefs), пресеты (`gems`, `unlock-heroes`, `research-all`, `all-materials` и др.), правки по путям, бэкапы + round-trip-верификация, защита служебных полей, selftest (28 проверок) |
 | `tools/sk870_save_fields.py` | экстрактор классов/полей/методов из декодированной метадаты (v31, счётчики typeDef: method/prop/**field**/event/nested/vtable/if/ifoff — порядок подтверждён тайлингом таблиц, 0 перекрытий) |
-| `tools/sk870_save_classes.json` | выжимка полей 19 ключевых классов сейвов (в репо) |
-| `tools/sk_local_save.py` | легаси-крипто `.data`: XOR game.data, DES `crst1`/`iambo`, вытягивание `cloudSaveId` |
+| `tools/sk870_save_classes.json` | выжимка полей 19 ключевых классов сейвов (в репо; редактор грузит её автоматически) |
+| `tools/sk_local_save.py` | легаси-крипто `.data`: XOR game.data, DES `crst1`/`iambo`, вытягивание `cloudSaveId` (совместим с редактором: расшифровывает его вывод) |
 | `tools/sk870_metadata_decode.py` / `sk870_metadata_dump.py` | снятие маски метадаты и дамп имён |
-| — | Rijndael-128/AES-256 путь: механика ясна (`SaveDataWithRijndael`, суффикс `.aes`, ключи из playerprefs `DataRijndael128Key`/`DataRijndaelIV`/`DataAES256Key`); реализация ждёт дамп ключей с устройства (чеклист RE-NOTES §Чеклист) |
+| — | Rijndael-128/AES-256 путь: механика ясна (`SaveDataWithRijndael`, суффикс `.aes`, ключи из playerprefs `DataRijndael128Key`/`DataRijndaelIV`/`DataAES256Key`); **реализован в редакторе** как мульти-догадка (raw/b64 × CBC/ECB × ключи b64/hex/utf8/sha256) — точная схема подтвердится первым `pull` живого `.aes` (чеклист RE-NOTES §Чеклист) |
