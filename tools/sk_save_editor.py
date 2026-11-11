@@ -63,7 +63,7 @@ except ImportError:  # pragma: no cover
     AES = DES = None
 
 PKG = "com.ChillyRoom.DungeonShooter"
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 # ---------------------------------------------------------------------------
 # 1. Крипто-константы (литералы из игры/метадаты, REVERSING.md §3.2, §4)
@@ -893,12 +893,35 @@ def p_pets(doc, a, opts):
     return changes
 
 
+def _uid_variant_hint(doc):
+    """Подсказка, если рядом лежат другие копии той же секции. У 8.7.0 <sec>.data
+    часто пустой шаблон, реальные данные — в <sec>_<accountId>_.data (каноничная
+    копия, см. LOCAL-SAVE-870.md §1.1 и GUIDE-TOP-SAVE §3)."""
+    d = os.path.dirname(os.path.abspath(doc.path)) or "."
+    try:
+        names = sorted(os.listdir(d))
+    except OSError:
+        return ""
+    own = parse_save_name(doc.path)["name"].lower()
+    sibs = [fn for fn in names
+            if fn != os.path.basename(doc.path)
+            and fn.lower().endswith(SAVE_SUFFIXES)
+            and not fn.lower().endswith(".data.new")
+            and parse_save_name(fn)["name"].lower() == own]
+    if not sibs:
+        return ""
+    return (" В каталоге есть другие копии этой секции: %s. Реальные данные обычно "
+            "в UID-варианте (<sec>_<accountId>_.data) — прогони пресет и на нём, "
+            "напр.: python sk_save_editor.py preset \"%s\" <пресет> --yes"
+            % (", ".join(sibs), os.path.join(d, sibs[-1])))
+
+
 @preset("research-all", "", "все известные чертежи -> Researched (itemData.blueprints)")
 def p_research(doc, a, opts):
     it = _gdoc(doc, "itemData")
     bp = it.get("blueprints")
-    if not isinstance(bp, dict):
-        raise RuntimeError("blueprints пуст/не словарь")
+    if not isinstance(bp, dict) or not bp:
+        raise RuntimeError("blueprints в этом файле пуст — править нечего." + _uid_variant_hint(doc))
     changes = []
     for k, v in bp.items():
         if v != "Researched":
@@ -925,7 +948,7 @@ def p_all_materials(doc, a, opts):
     it = _gdoc(doc, "itemData")
     mat = it.get("materials")
     if not isinstance(mat, dict) or not mat:
-        raise RuntimeError("materials пуст — нечего массово править")
+        raise RuntimeError("materials пуст — нечего массово править." + _uid_variant_hint(doc))
     cnt = int(a[0])
     changes = []
     for k, v in mat.items():
@@ -953,7 +976,7 @@ def p_all_seeds(doc, a, opts):
     it = _gdoc(doc, "itemData")
     seeds = it.get("seeds")
     if not isinstance(seeds, dict) or not seeds:
-        raise RuntimeError("seeds пуст — нечего массово править")
+        raise RuntimeError("seeds пуст — нечего массово править." + _uid_variant_hint(doc))
     cnt = int(a[0])
     changes = []
     for k, v in seeds.items():
@@ -1061,7 +1084,12 @@ def run_preset(doc: SaveDoc, name: str, pargs, opts):
 def adb_run(adb_path, args, timeout=180):
     p = subprocess.run([adb_path] + args, capture_output=True, timeout=timeout)
     if p.returncode != 0:
-        raise RuntimeError("adb %s: %s" % (" ".join(args[:3]), p.stderr.decode("utf-8", "replace").strip()))
+        # старые adb часть ошибок пишут в stdout, а иногда молчат вовсе —
+        # показываем всё, что есть, плюс код возврата (диагностика без пустых [!])
+        err = (p.stderr or b"").decode("utf-8", "replace").strip()
+        out = (p.stdout or b"").decode("utf-8", "replace").strip()
+        raise RuntimeError("adb %s (rc=%d): %s" % (" ".join(args[:3]), p.returncode,
+                                                   err or out or "<adb молчит — см. rc>"))
     return p.stdout
 
 
@@ -1110,6 +1138,53 @@ def device_list_files(adb_path, root, d, timeout=120):
     out = device_sh(adb_path, root, "find %s -maxdepth 1 -type f" % d,
                     timeout=timeout).decode("utf-8", "replace")
     return sorted({l.strip("\r") for l in out.splitlines() if l.strip()})
+
+
+def device_file_size(adb_path, root, path, timeout=60):
+    """Размер файла на устройстве в байтах (wc -c через su)."""
+    out = device_sh(adb_path, root, "wc -c < %s" % _q(path), timeout=timeout).decode("utf-8", "replace").strip()
+    if not out.isdigit():
+        raise RuntimeError("не удалось узнать размер %s на устройстве (%r)" % (path, out[:80]))
+    return int(out)
+
+
+def device_write_file(adb_path, root, local_path, remote_path, timeout=900):
+    """Бинарно-безопасная ЗАПИСЬ файла на устройство (зеркало device_read_file).
+    1) adb push (sync-протокол) + контроль размера на устройстве;
+    2) fallback: base64 чанками через exec-out su -c "printf '...' >> f.b64" —
+       тот же канал, на котором pull доказанно работает на старых adb LDPlayer
+       (бинарные потоки они портят, текст — нет); чанки < 4KB payload древнего
+       adbd; алфавит base64 без кавычек и % — printf безопасен.
+    Возвращает способ доставки: 'push' | 'base64'."""
+    with open(local_path, "rb") as f:
+        data = f.read()
+    try:
+        adb_run(adb_path, ["push", local_path, remote_path], timeout=timeout)
+        got = device_file_size(adb_path, root, remote_path, timeout=timeout)
+        if got == len(data):
+            return "push"
+        print("[!] adb push доложил %d/%d байт — доставляю base64-чанками" % (got, len(data)))
+    except Exception as e:
+        print("[i] adb push не сработал (%s)" % e)
+        print("[i] -> fallback: base64-чанками через exec-out (медленнее, но надёжно)")
+    b64 = base64.b64encode(data).decode("ascii")
+    tmp_b64 = remote_path + ".b64"
+    device_sh(adb_path, root, "rm -f %s %s" % (_q(remote_path), _q(tmp_b64)), timeout=timeout)
+    chunk, per_call = 1200, 3   # ~3.6KB на вызов — влезает в 4KB payload старого adbd
+    span = chunk * per_call
+    n_calls = (len(b64) + span - 1) // span
+    for done, i in enumerate(range(0, len(b64), span), 1):
+        cmds = ["printf %s >> %s" % (_q(b64[j:j + chunk]), _q(tmp_b64))
+                for j in range(i, min(i + span, len(b64)), chunk)]
+        device_sh(adb_path, root, "; ".join(cmds), timeout=timeout)
+        if n_calls < 10 or done % max(1, n_calls // 10) == 0 or done == n_calls:
+            print("[i] base64-заливка: %d%% (%d/%d)" % (done * 100 // n_calls, done, n_calls))
+    device_sh(adb_path, root, "base64 -d %s > %s && rm -f %s"
+              % (_q(tmp_b64), _q(remote_path), _q(tmp_b64)), timeout=timeout)
+    got = device_file_size(adb_path, root, remote_path, timeout=timeout)
+    if got != len(data):
+        raise RuntimeError("заливка не сошлась: на устройстве %d байт, локально %d" % (got, len(data)))
+    return "base64"
 
 
 def cmd_pull(args):
@@ -1196,37 +1271,85 @@ def cmd_pull(args):
     return 0
 
 
+_BAK_RE = re.compile(r"\.bak(_\d{8}_\d{6})?$", re.I)
+
+
+def _push_tar_filter(ti):
+    """tarfile-фильтр push: на устройство не едут локальные артефакты —
+    бэкапы .bak_<ts>, временные .data.new (могут откатить правки при первом
+    запуске игры) и мусор Windows (desktop.ini/Thumbs.db)."""
+    if ti.name.endswith(".data.new"):
+        return None
+    base = ti.name.rsplit("/", 1)[-1]
+    if base.lower() in ("desktop.ini", "thumbs.db") or _BAK_RE.search(base):
+        return None
+    return ti
+
+
 def cmd_push(args):
-    adb_path = args.adb or shutil.which("adb") or "adb"
+    adb_path = args.adb or shutil.which("adb")
+    if not adb_path:
+        raise RuntimeError("adb не найден. Укажи путь: --adb \"D:\\LDPlayer\\LDPlayer14\\adb.exe\" "
+                           "(или добавь adb в PATH)")
     src = os.path.abspath(args.dir)
     if not os.path.isdir(src):
         raise RuntimeError("нет каталога: %s" % src)
     root = device_has_root(adb_path)
     if not root:
-        raise RuntimeError("нет root")
+        raise RuntimeError("нет root: залить в /data/data/%s не выйдет. LDPlayer: настройки "
+                           "эмулятора -> Root-права = ON (проверка: adb shell su -c id -> uid=0); "
+                           "если adb не в PATH — укажи --adb" % PKG)
     if args.kill:
         adb_run(adb_path, ["shell", "am force-stop %s" % PKG])
         print("[i] игра закрыта (иначе кэш секций перезатрёт правки)")
     ts = time.strftime("%Y%m%d_%H%M%S")
-    pre_backup = "/data/local/tmp/sk_pre_backup_%s.tar" % ts
+    # ВАЖНО: только прямые слэши. os.path.join на Windows даёт '\', а на Android
+    # '\' — часть ИМЕНИ файла: старые adb на таком назначении падают молча, а tar
+    # потом не находит файл. Ровно это и был баг push (пустая ошибка adb push).
+    tmp_dir = "/data/local/tmp"
+    pre_backup = "%s/sk_pre_backup_%s.tar" % (tmp_dir, ts)
+    push_tar = "%s/sk_push_%s.tar" % (tmp_dir, ts)
     device_sh(adb_path, root, "tar -cf %s -C /data/data/%s files shared_prefs" % (pre_backup, PKG))
     print("[i] страховка на устройстве: %s" % pre_backup)
     buf = io.BytesIO()
-
-    def _skip_new(ti):
-        return None if ti.name.endswith(".data.new") else ti
-
+    counts = {}
     with tarfile.open(fileobj=buf, mode="w") as tf:
         for sub in ("files", "shared_prefs"):
             subdir = os.path.join(src, sub)
-            if os.path.isdir(subdir):
-                tf.add(subdir, arcname=sub, filter=_skip_new)
-    tmp = os.path.join("/data/local/tmp", "sk_push_%s.tar" % ts)
+            if not os.path.isdir(subdir):
+                counts[sub] = 0
+                continue
+            before = len(tf.getmembers())
+            tf.add(subdir, arcname=sub, filter=_push_tar_filter)
+            counts[sub] = sum(1 for m in tf.getmembers()[before:] if m.isfile())
+    if counts.get("files", 0) + counts.get("shared_prefs", 0) == 0:
+        raise RuntimeError("в %s нет files/ и shared_prefs/ — нечего заливать" % src)
     local_tar = os.path.join(src, "_sk_push.tar")
     with open(local_tar, "wb") as f:
         f.write(buf.getvalue())
-    adb_run(adb_path, ["push", local_tar, tmp])
-    device_sh(adb_path, root, "tar -xf %s -C /data/data/%s" % (tmp, PKG))
+    print("[i] tar: files/=%d, shared_prefs/=%d, %d байт (бэкапы .bak_*, .data.new и мусор Windows в tar не попадают)"
+          % (counts.get("files", 0), counts.get("shared_prefs", 0), len(buf.getvalue())))
+    how = device_write_file(adb_path, root, local_tar, push_tar, timeout=900)
+    print("[i] tar доставлен на устройство (%s): %s" % (how, push_tar))
+    device_sh(adb_path, root, "tar -xf %s -C /data/data/%s" % (push_tar, PKG), timeout=600)
+    # выборочная сверка: размеры ключевых файлов на устройстве == локальным
+    checked = 0
+    for lp in (os.path.join(src, "files", "game.data"),
+               os.path.join(src, "shared_prefs", "com.ChillyRoom.DungeonShooter.v2.playerprefs.xml")):
+        if not os.path.isfile(lp):
+            continue
+        rel = os.path.relpath(lp, src).replace("\\", "/")
+        try:
+            got = device_file_size(adb_path, root, "/data/data/%s/%s" % (PKG, rel))
+            want = os.path.getsize(lp)
+            if got != want:
+                print("[!] НЕ СХОДИТСЯ размер %s: на устройстве %d, локально %d — повтори push" % (rel, got, want))
+            else:
+                checked += 1
+        except Exception as e:
+            print("[!] сверка %s не удалась: %s" % (rel, e))
+    if checked:
+        print("[i] сверка размеров: %d ключевых файлов совпали" % checked)
     if not getattr(args, "keep_new", False):
         # .data.new — временные файлы атомарной записи; если на устройстве остался
         # свежий .new, игра при первом запуске может откатить им наши правки .data.
@@ -1248,12 +1371,19 @@ def cmd_push(args):
             print("[i] владелец файлов восстановлен: uid %s" % uid)
     except Exception as e:
         print("[!] chown не удался (%s) — если игра не увидит правки, проверь владельца" % e)
+    try:
+        # SELinux-контекст: файлы, созданные root'ом при распаковке tar, должны
+        # получить контекст приложения; restorecon есть на Android 6+.
+        device_sh(adb_path, root, "restorecon -R /data/data/%s/files /data/data/%s/shared_prefs 2>/dev/null || true"
+                  % (PKG, PKG))
+    except Exception:
+        pass
     if args.no_keep:
-        device_sh(adb_path, root, "rm -f %s %s" % (tmp, pre_backup))
+        device_sh(adb_path, root, "rm -f %s %s" % (push_tar, pre_backup))
     else:
-        device_sh(adb_path, root, "rm -f %s" % tmp)
+        device_sh(adb_path, root, "rm -f %s" % push_tar)
     os.remove(local_tar)
-    print("[ok] залито из %s; запускай игру" % src)
+    print("[ok] залито из %s; запускай игру (первый запуск — офлайн, см. GUIDE-TOP-SAVE §6)" % src)
     if not args.no_keep:
         print("[i] pre-backup оставлен на устройстве: %s (восстановление: su -c 'tar -xf %s -C /data/data/%s')"
               % (pre_backup, pre_backup, PKG))
@@ -1391,6 +1521,15 @@ def cmd_selftest(args):
     enc = base64.b64encode(des_encrypt(sample, KEY_DEFAULT))
     dec = des_decrypt(base64.b64decode(enc), KEY_DEFAULT)
     check("DES iambo round-trip", dec == sample)
+
+    # --- 9) push-фильтр tar: бэкапы/временные/мусор не едут на устройство ---
+    ti = lambda n: tarfile.TarInfo(n)
+    check("push-фильтр tar",
+          _push_tar_filter(ti("files/game.data.bak_20261111_212637")) is None
+          and _push_tar_filter(ti("files/game.data.new")) is None
+          and _push_tar_filter(ti("files/desktop.ini")) is None
+          and _push_tar_filter(ti("shared_prefs/x.xml.bak_20261111_213343")) is None
+          and _push_tar_filter(ti("files/game.data")) is not None)
 
     shutil.rmtree(tmp, ignore_errors=True)
     print()

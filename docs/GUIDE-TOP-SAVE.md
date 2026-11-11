@@ -76,6 +76,11 @@ python tools\sk_prefs.py info .\profile\shared_prefs\com.ChillyRoom.DungeonShoot
 `--yes` — без вопросов; ниже accountId 235288966 — замени на свой,
 он в выводе `info`):
 
+> **С версии 1.0.1**: если blueprints/materials/seeds в указанном файле пусты,
+> пресет не молчит, а подсказывает соседние копии секции — у 8.7.0 `<sec>.data`
+> часто пустой шаблон, а реальные предметы лежат в `<sec>_<accountId>_.data`.
+> Правь обе копии (как в блоке ниже).
+
 ```bat
 :: алмазы: gems = lastGems = N, varGems = 0, cumulativeGems += — леджер согласован
 python tools\sk_save_editor.py preset .\profile\files\game.data gems 50000 --yes
@@ -142,12 +147,23 @@ python tools\sk_prefs.py set %PREFS% 235288966_reborn_card 10 --yes
 python tools\sk_save_editor.py push .\profile --kill --adb "D:\LDPlayer\LDPlayer14\adb.exe"
 ```
 
-Push делает страховочный tar текущего профиля на устройстве
-(`/data/local/tmp/sk_pre_backup_<ts>.tar`), заливает каталог (включая prefs,
-`.data.new` из профиля НЕ заливает), восстанавливает владельца файлов и
-**удаляет временные `*.data.new` на устройстве** — иначе игра при первом
-запуске может откатить ими свежезаписанные `.data`. Отключить: `--keep-new`
-(не рекомендуется).
+Push (v1.0.1) делает:
+
+1. страховочный tar текущего профиля на устройстве
+   (`/data/local/tmp/sk_pre_backup_<ts>.tar`);
+2. локальный tar профиля — **без** `.bak_*`, `.data.new` и мусора Windows
+   (`desktop.ini`/`Thumbs.db`);
+3. доставку tar: `adb push` + контроль размера на устройстве; если push
+   не сработал (старые adb LDPlayer молча падают на путях) — автоматически
+   заливает base64-чанками через `exec-out` (тот же канал, что у pull,
+   бинарно-безопасно; путь назначения — только прямые слэши, старый баг
+   `os.path.join` с `\` в имени удалён);
+4. распаковку в `/data/data/<pkg>`, удаление временных `*.data.new` на
+   устройстве (иначе первый запуск может откатить ими свежие `.data`),
+   выборочную сверку размеров ключевых файлов, `chown` на uid приложения
+   и `restorecon` (SELinux-контекст);
+
+Отключить удаление `.new`: `--keep-new` (не рекомендуется).
 
 ## 6. Первый запуск — важное
 
@@ -190,6 +206,8 @@ python tools\sk_save_editor.py write .\profile\files\mall_reload_data_235288966_
 | `can't open file ... sk_save_editor.py` | ты не в каталоге с тулзой. Скрипты лежат в репо (`tools\`); запускай из корня репо или укажи полный путь |
 | `adb: устройство не найдено` | `D:\LDPlayer\LDPlayer14\adb.exe devices` — пусто? Выполни `adb connect 127.0.0.1:5554` (порт — из заголовка окна эмулятора: 5554/5555/5556…) |
 | `нет root` | В настройках LDPlayer включи Root-права; проверка: `adb shell su -c id` → `uid=0(root)` (у тебя уже включён — ок) |
+| push падал с пустым `[!] adb push ...:` | Старый баг v1.0.0: `os.path.join` на Windows ставил `\` в путь НА УСТРОЙСТВЕ, и старый adb молча падал. Исправлено в v1.0.1: путь с прямыми слэшами + fallback base64-чанками + внятный отчёт об ошибке (rc/stdout). Перескачай `sk_save_editor.py` и повтори |
+| push пишет `base64-заливка: N%` | Это не ошибка: adb push не сработал (частое поведение старых adb LDPlayer), тулза автоматически льёт tar base64-чанками — медленнее, но так же надёжно |
 | pull отдал только 2–3 файла | Это старый баг tar-потока (исправлен в этой версии): перескачай `sk_save_editor.py` из репо и повтори; при повторении — `--debug` |
 | `adb pull /data/data/...` даёт `0 files pulled` | Норма: shell-пользователь не имеет доступа к `/data/data` — нужен root-pull (наш скрипт) |
 | `find: bad arg '...'` в ручных командах | Кавычки съедаются PowerShell/adb при передаче глобов (`*data*`); в скрипте глобов нет — используй его |
