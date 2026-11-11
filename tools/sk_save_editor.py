@@ -63,7 +63,7 @@ except ImportError:  # pragma: no cover
     AES = DES = None
 
 PKG = "com.ChillyRoom.DungeonShooter"
-VERSION = "1.0.1"
+VERSION = "1.1.0"
 
 # ---------------------------------------------------------------------------
 # 1. Крипто-константы (литералы из игры/метадаты, REVERSING.md §3.2, §4)
@@ -916,12 +916,95 @@ def _uid_variant_hint(doc):
             % (", ".join(sibs), os.path.join(d, sibs[-1])))
 
 
+# Каталог игровых id для синтеза предметов на ПУСТОМ аккаунте (materials/seeds/
+# blueprints там пустые — массово править нечего). Источники — только реальные
+# строки: (а) itemData облачного сейва аккаунта 235288966 (skdump/
+# snap_SoulKnightCloud), (б) литералы global-metadata.dat 8.7.0 — соседство в
+# строковой куче (id зажат между двумя подтверждёнными) = подтверждение.
+# Игра молча игнорирует неизвестные id, так что риск ограничен. Расширение:
+# preset ... grant-materials 499 --ids-file мой.json
+_IDS_870_JSON = r'''{
+  "_source": "itemData cloud snapshot GPV2_235288940 (2026-11) + global-metadata.dat 8.7.0 string literals; verified by context",
+  "materials": [
+    "material_ancient_weapon_fragment", "material_battery", "material_c17_book_1", "material_c17_book_2",
+    "material_c18_book_1", "material_c18_book_2", "material_c20_book_1", "material_c20_book_2",
+    "material_c21_book_1", "material_c21_book_2", "material_cell", "material_dead_cell",
+    "material_fertilize", "material_fish", "material_fragment_c6h8o6", "material_fragment_zulan",
+    "material_gear", "material_gem", "material_generic_weapon_fragment_3", "material_generic_weapon_fragment_4",
+    "material_generic_weapon_fragment_5", "material_grain", "material_hopper_ticket", "material_iron",
+    "material_jewelry_fragment", "material_magic_black", "material_magic_blue", "material_magic_cyan",
+    "material_magic_green", "material_magic_orange", "material_magic_purple", "material_magic_red",
+    "material_mech_fragment", "material_master_enlightenment", "material_master_insight",
+    "material_mentor_wish", "material_delta", "material_skill_Druid_1", "material_skill_Paladin_2",
+    "material_skill_Priest_1", "material_skill_Viking_2", "material_skill_Warlock_1",
+    "material_skin_fragment_boss07", "material_skin_fragment_boss08", "material_skin_fragment_boss16",
+    "material_skin_fragment_boss19", "material_skin_fragment_boss23", "material_skin_fragment_boss30",
+    "material_skin_fragment_c12_s12", "material_skin_fragment_c12_s6", "material_skin_fragment_c16_s6",
+    "material_skin_fragment_c7_s12", "material_skin_fragment_flag", "material_skin_fragment_law",
+    "material_skin_fragment_shop", "material_tape_boss1", "material_tape_boss2", "material_tape_castle",
+    "material_tape_graveyard", "material_tape_ice", "material_tape_level_2g", "material_tape_ruins",
+    "material_ticket", "material_ticket_bossrush", "material_wood", "material_combo_gun_spark_currency",
+    "material_season_coin", "material_season_ticket_treasure_box", "material_season_treasure_box_1",
+    "material_season_treasure_box_2", "material_season_treasure_box_3"
+  ],
+  "seeds": [
+    "plant_banboo_seed", "plant_binary_tree_seed", "plant_cactus_seed", "plant_carrot_seed",
+    "plant_datura_seed", "plant_defend_flower_seed", "plant_eator_seed", "plant_fantastic_flower_seed",
+    "plant_firecracker_seed", "plant_gear_flower_seed", "plant_gem_flower_seed", "plant_gem_tree_seed",
+    "plant_heptacolor_seed", "plant_icepear_seed", "plant_iron_tree_seed", "plant_lavender_seed",
+    "plant_lotus_seed", "plant_lycoris_seed", "plant_magic_flower_seed", "plant_mandrake_seed",
+    "plant_mirror_plane_flower_seed", "plant_mushroom_seed", "plant_pumpkin_seed", "plant_qilixiang_seed",
+    "plant_rainbow_grass_seed", "plant_roselle_seed", "plant_shallot_seed", "plant_silver_poplar_seed",
+    "plant_strange_flower_seed", "plant_tree_seed", "plant_trumpet_seed", "plant_vine_seed",
+    "plant_watermelon_seed", "plant_worm_seed", "plant_xmas_seed", "plant_zongzi_seed"
+  ],
+  "blueprints": {
+    "blueprint_m_mech_2": "Researched", "blueprint_m_mech_4": "Researched",
+    "blueprint_room_decorate_fishbowl": "Got", "blueprint_room_decorate_magic_well": "Got",
+    "blueprint_room_decorate_mysteriou_statue": "Got", "blueprint_skill_Priest_1": "Researched",
+    "blueprint_skin_alchemist_8": "Researched", "blueprint_skin_ranger_6": "Researched",
+    "blueprint_skin_ranger_12": "Researched", "blueprint_skin_taoist_14": "Researched",
+    "blueprint_transform_weapon_beheaded": "Researched", "blueprint_transform_weapon_specialforces": "Researched",
+    "blueprint_weapon_211": "Researched", "blueprint_weapon_213": "Researched",
+    "blueprint_weapon_223": "Researched", "blueprint_weapon_237": "Researched",
+    "blueprint_weapon_245": "Researched", "blueprint_weapon_294": "Researched",
+    "blueprint_weapon_333": "Researched", "blueprint_weapon_340": "Researched",
+    "blueprint_weapon_341": "Researched", "blueprint_weapon_356": "Researched",
+    "blueprint_weapon_370": "Researched", "blueprint_weapon_fish_rod": "Researched",
+    "blueprint_weapon_fish_rod_a": "Researched",
+    "garden_skin_1": "Got", "multi_room_skin_7": "Got"
+  }
+}'''
+
+
+def _id_catalog(opts=None):
+    cat = json.loads(_IDS_870_JSON)
+    custom = getattr(opts, "ids_file", None)
+    if custom:
+        with open(custom, "r", encoding="utf-8") as f:
+            extra = json.load(f)
+        for k in ("materials", "seeds"):
+            for v in extra.get(k, []):
+                if v not in cat[k]:
+                    cat[k].append(v)
+        cat.get("blueprints", {}).update(extra.get("blueprints", {}))
+        print("[i] каталог дополнен из %s" % custom)
+    return cat
+
+
+def _empty_account_hint():
+    return (" Если аккаунт ПУСТОЙ (секция пуста и в соседней копии) — массово править нечего:\n"
+            "    синтезируй предметы из каталога: preset <файл> grant-materials 499 --yes\n"
+            "    (аналогично grant-seeds 99, grant-blueprints, grant-all 499)")
+
+
 @preset("research-all", "", "все известные чертежи -> Researched (itemData.blueprints)")
 def p_research(doc, a, opts):
     it = _gdoc(doc, "itemData")
     bp = it.get("blueprints")
     if not isinstance(bp, dict) or not bp:
-        raise RuntimeError("blueprints в этом файле пуст — править нечего." + _uid_variant_hint(doc))
+        raise RuntimeError("blueprints в этом файле пуст — править нечего." +
+                           _uid_variant_hint(doc) + _empty_account_hint())
     changes = []
     for k, v in bp.items():
         if v != "Researched":
@@ -948,7 +1031,7 @@ def p_all_materials(doc, a, opts):
     it = _gdoc(doc, "itemData")
     mat = it.get("materials")
     if not isinstance(mat, dict) or not mat:
-        raise RuntimeError("materials пуст — нечего массово править." + _uid_variant_hint(doc))
+        raise RuntimeError("materials пуст — нечего массово править." + _uid_variant_hint(doc) + _empty_account_hint())
     cnt = int(a[0])
     changes = []
     for k, v in mat.items():
@@ -976,13 +1059,78 @@ def p_all_seeds(doc, a, opts):
     it = _gdoc(doc, "itemData")
     seeds = it.get("seeds")
     if not isinstance(seeds, dict) or not seeds:
-        raise RuntimeError("seeds пуст — нечего массово править." + _uid_variant_hint(doc))
+        raise RuntimeError("seeds пуст — нечего массово править." + _uid_variant_hint(doc) + _empty_account_hint())
     cnt = int(a[0])
     changes = []
     for k, v in seeds.items():
         if v != cnt:
             seeds[k] = cnt
             changes.append(("itemData.seeds[%s]" % k, v, cnt))
+    return changes
+
+
+# --- синтез предметов на пустом аккаунте (каталог реальных id, см. _IDS_870_JSON) ---
+@preset("grant-materials", "COUNT", "выдать ВСЕ материалы каталога 8.7.0 (создать недостающие) — для пустого аккаунта")
+def p_grant_materials(doc, a, opts):
+    it = _gdoc(doc, "itemData")
+    mat = it.get("materials")
+    if not isinstance(mat, dict):
+        mat = {}
+        it["materials"] = mat
+    cnt = int(a[0])
+    changes = []
+    for mid in _id_catalog(opts)["materials"]:
+        if mat.get(mid) != cnt:
+            changes.append(("itemData.materials[%s]" % mid, mat.get(mid, "<создан>"), cnt))
+        mat[mid] = cnt
+    return changes
+
+
+@preset("grant-seeds", "COUNT", "выдать ВСЕ семена каталога 8.7.0 — для пустого аккаунта")
+def p_grant_seeds(doc, a, opts):
+    it = _gdoc(doc, "itemData")
+    seeds = it.get("seeds")
+    if not isinstance(seeds, dict):
+        seeds = {}
+        it["seeds"] = seeds
+    cnt = int(a[0])
+    changes = []
+    for sid in _id_catalog(opts)["seeds"]:
+        if seeds.get(sid) != cnt:
+            changes.append(("itemData.seeds[%s]" % sid, seeds.get(sid, "<создан>"), cnt))
+        seeds[sid] = cnt
+    return changes
+
+
+@preset("grant-blueprints", "", "все чертежи каталога 8.7.0 -> Researched (создать недостающие); STATE переопределяет")
+def p_grant_blueprints(doc, a, opts):
+    it = _gdoc(doc, "itemData")
+    bp = it.get("blueprints")
+    if not isinstance(bp, dict):
+        bp = {}
+        it["blueprints"] = bp
+    state = a[0] if a else None
+    changes = []
+    for bid, defstate in _id_catalog(opts)["blueprints"].items():
+        want = state or defstate
+        if bp.get(bid) != want:
+            changes.append(("itemData.blueprints[%s]" % bid, bp.get(bid, "<создан>"), want))
+        bp[bid] = want
+    return changes
+
+
+@preset("grant-all", "COUNT", "grant-materials + grant-seeds + grant-blueprints одним заходом — для пустого аккаунта")
+def p_grant_all(doc, a, opts):
+    changes = p_grant_materials(doc, a, opts) + p_grant_seeds(doc, a, opts)
+    it = _gdoc(doc, "itemData")
+    bp = it.get("blueprints")
+    if not isinstance(bp, dict):
+        bp = {}
+        it["blueprints"] = bp
+    for bid, defstate in _id_catalog(opts)["blueprints"].items():
+        if bp.get(bid) != defstate:
+            changes.append(("itemData.blueprints[%s]" % bid, bp.get(bid, "<создан>"), defstate))
+        bp[bid] = defstate
     return changes
 
 
@@ -1286,6 +1434,65 @@ def _push_tar_filter(ti):
     return ti
 
 
+def _app_uid(adb_path, root):
+    """uid приложения (владелец /data/data/<pkg>). Берём ДО распаковки tar:
+    сам пакетный каталог tar не трогает, а вот files/ и shared_prefs/ после
+    распаковки могут быть уже перезаписаны чужим владельцем."""
+    out = device_sh(adb_path, root, "stat -c %%u /data/data/%s" % PKG).decode().strip()
+    if not out.isdigit() or int(out) == 0:
+        raise RuntimeError("не удалось определить uid приложения (stat вернул %r); "
+                           "нужен рабочий root (adb shell su -c id -> uid=0)" % out[:40])
+    return int(out)
+
+
+def _push_tar_ownership(app_uid):
+    """Фильтр tarfile: вшивает владельца и права Android в ЧЛЕНЫ tar.
+    Без этого tar, собранный на Windows, несёт uid=0 и права 0666/0777;
+    root-tar на устройстве честно их восстанавливает — и файлы сейва
+    становились root:root (в логе это выглядело как «владелец uid 0»),
+    а запуск игры мог зависать/падать на записи сейва."""
+    def filt(ti):
+        ti2 = _push_tar_filter(ti)
+        if ti2 is None:
+            return None
+        ti2.uid = ti2.gid = app_uid
+        ti2.uname = ti2.gname = ""
+        ti2.mode = 0o771 if ti2.isdir() else 0o660
+        return ti2
+    return filt
+
+
+def _device_md5(adb_path, root, paths, batch=8):
+    """md5 списка файлов НА УСТРОЙСТВЕ (чанками — su -c не любит длинные строки)."""
+    out = {}
+    for i in range(0, len(paths), batch):
+        cmd = "md5sum %s" % " ".join(_q(p) for p in paths[i:i + batch])
+        txt = device_sh(adb_path, root, cmd, timeout=300).decode("utf-8", "replace")
+        for line in txt.splitlines():
+            m = re.match(r"^([0-9a-fA-F]{32})\s+(.+?)\s*$", line.strip())
+            if m:
+                out[m.group(2)] = m.group(1).lower()
+    return out
+
+
+def _fix_ownership(adb_path, root, app_uid):
+    """chown/chmod/restorecon поверх распакованного профиля (страховка к вшитым в tar правам)."""
+    device_sh(adb_path, root, "chown -R %d:%d /data/data/%s/files /data/data/%s/shared_prefs"
+              % (app_uid, app_uid, PKG, PKG))
+    for sub in ("files", "shared_prefs"):
+        device_sh(adb_path, root,
+                  "chmod 771 /data/data/%s/%s; find /data/data/%s/%s -maxdepth 1 -type f "
+                  "-exec chmod 660 {} +" % (PKG, sub, PKG, sub))
+    try:
+        r = device_sh(adb_path, root,
+                      "restorecon -R /data/data/%s/files /data/data/%s/shared_prefs 2>&1" % (PKG, PKG)
+                      ).decode("utf-8", "replace").strip()
+        if r and "not found" not in r.lower() and "No such tool" not in r:
+            print("[i] restorecon: %s" % r[:120])
+    except Exception:
+        pass
+
+
 def cmd_push(args):
     adb_path = args.adb or shutil.which("adb")
     if not adb_path:
@@ -1302,6 +1509,8 @@ def cmd_push(args):
     if args.kill:
         adb_run(adb_path, ["shell", "am force-stop %s" % PKG])
         print("[i] игра закрыта (иначе кэш секций перезатрёт правки)")
+    app_uid = _app_uid(adb_path, root)
+    print("[i] uid приложения: %d (его вшьём в tar как владельца файлов)" % app_uid)
     ts = time.strftime("%Y%m%d_%H%M%S")
     # ВАЖНО: только прямые слэши. os.path.join на Windows даёт '\', а на Android
     # '\' — часть ИМЕНИ файла: старые adb на таком назначении падают молча, а tar
@@ -1313,6 +1522,7 @@ def cmd_push(args):
     print("[i] страховка на устройстве: %s" % pre_backup)
     buf = io.BytesIO()
     counts = {}
+    pushed = []  # члены tar (файлы), реально ушедшие на устройство — для md5-сверки
     with tarfile.open(fileobj=buf, mode="w") as tf:
         for sub in ("files", "shared_prefs"):
             subdir = os.path.join(src, sub)
@@ -1320,8 +1530,10 @@ def cmd_push(args):
                 counts[sub] = 0
                 continue
             before = len(tf.getmembers())
-            tf.add(subdir, arcname=sub, filter=_push_tar_filter)
-            counts[sub] = sum(1 for m in tf.getmembers()[before:] if m.isfile())
+            tf.add(subdir, arcname=sub, filter=_push_tar_ownership(app_uid))
+            pushed += [m.name for m in tf.getmembers()[before:] if m.isfile()]
+        counts["files"] = sum(1 for n in pushed if n.startswith("files/"))
+        counts["shared_prefs"] = sum(1 for n in pushed if n.startswith("shared_prefs/"))
     if counts.get("files", 0) + counts.get("shared_prefs", 0) == 0:
         raise RuntimeError("в %s нет files/ и shared_prefs/ — нечего заливать" % src)
     local_tar = os.path.join(src, "_sk_push.tar")
@@ -1332,24 +1544,22 @@ def cmd_push(args):
     how = device_write_file(adb_path, root, local_tar, push_tar, timeout=900)
     print("[i] tar доставлен на устройство (%s): %s" % (how, push_tar))
     device_sh(adb_path, root, "tar -xf %s -C /data/data/%s" % (push_tar, PKG), timeout=600)
-    # выборочная сверка: размеры ключевых файлов на устройстве == локальным
-    checked = 0
-    for lp in (os.path.join(src, "files", "game.data"),
-               os.path.join(src, "shared_prefs", "com.ChillyRoom.DungeonShooter.v2.playerprefs.xml")):
-        if not os.path.isfile(lp):
-            continue
-        rel = os.path.relpath(lp, src).replace("\\", "/")
-        try:
-            got = device_file_size(adb_path, root, "/data/data/%s/%s" % (PKG, rel))
-            want = os.path.getsize(lp)
-            if got != want:
-                print("[!] НЕ СХОДИТСЯ размер %s: на устройстве %d, локально %d — повтори push" % (rel, got, want))
-            else:
-                checked += 1
-        except Exception as e:
-            print("[!] сверка %s не удалась: %s" % (rel, e))
-    if checked:
-        print("[i] сверка размеров: %d ключевых файлов совпали" % checked)
+    # ПОЛНАЯ сверка: md5 КАЖДОГО залитого файла на устройстве == локальному
+    # (старая сверка двух размеров ничего не гарантировала для остальных 63)
+    dev_md5 = _device_md5(adb_path, root, ["/data/data/%s/%s" % (PKG, n) for n in pushed])
+    mism = []
+    for name in pushed:
+        with open(os.path.join(src, name.replace("/", os.sep)), "rb") as f:
+            local = hashlib.md5(f.read()).hexdigest()
+        got = dev_md5.get("/data/data/%s/%s" % (PKG, name))
+        if got != local:
+            mism.append((name, got))
+    if mism:
+        for name, got in mism[:10]:
+            print("[!] MD5 НЕ СХОДИТСЯ: %s (на устройстве %s)" % (name, got or "<нет>"))
+        raise RuntimeError("push не сошёлся для %d/%d файлов — повтори push, при повторении "
+                           "запусти doctor и пришли вывод" % (len(mism), len(pushed)))
+    print("[i] сверка md5: %d/%d файлов совпали байт-в-байт" % (len(pushed), len(pushed)))
     if not getattr(args, "keep_new", False):
         # .data.new — временные файлы атомарной записи; если на устройстве остался
         # свежий .new, игра при первом запуске может откатить им наши правки .data.
@@ -1363,21 +1573,8 @@ def cmd_push(args):
         except Exception as e:
             print("[!] не удалось убрать .data.new (%s) — если правки откатятся, удали их вручную: "
                   "adb shell \"su -c 'rm /data/data/%s/files/*.data.new'\"" % (e, PKG))
-    try:
-        uid = device_sh(adb_path, root, "stat -c %%u /data/data/%s/files" % PKG).decode().strip()
-        if uid.isdigit():
-            device_sh(adb_path, root, "chown -R %s:%s /data/data/%s/files /data/data/%s/shared_prefs"
-                      % (uid, uid, PKG, PKG))
-            print("[i] владелец файлов восстановлен: uid %s" % uid)
-    except Exception as e:
-        print("[!] chown не удался (%s) — если игра не увидит правки, проверь владельца" % e)
-    try:
-        # SELinux-контекст: файлы, созданные root'ом при распаковке tar, должны
-        # получить контекст приложения; restorecon есть на Android 6+.
-        device_sh(adb_path, root, "restorecon -R /data/data/%s/files /data/data/%s/shared_prefs 2>/dev/null || true"
-                  % (PKG, PKG))
-    except Exception:
-        pass
+    _fix_ownership(adb_path, root, app_uid)
+    print("[i] владелец/права: uid %d, каталоги 771, файлы 660 (проверка: doctor)" % app_uid)
     if args.no_keep:
         device_sh(adb_path, root, "rm -f %s %s" % (push_tar, pre_backup))
     else:
@@ -1385,8 +1582,186 @@ def cmd_push(args):
     os.remove(local_tar)
     print("[ok] залито из %s; запускай игру (первый запуск — офлайн, см. GUIDE-TOP-SAVE §6)" % src)
     if not args.no_keep:
-        print("[i] pre-backup оставлен на устройстве: %s (восстановление: su -c 'tar -xf %s -C /data/data/%s')"
-              % (pre_backup, pre_backup, PKG))
+        print("[i] pre-backup оставлен на устройстве: %s (или просто: python sk_save_editor.py rescue %s)"
+              % (pre_backup, "--adb ..."))
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# 12.1. rescue: откат на pre-backup, doctor: диагностика устройства
+#      (появились после зависания игры на 100% при первом прогоне push)
+# ---------------------------------------------------------------------------
+def cmd_rescue(args):
+    """Восстановить профиль из pre-backup'а push (страховочный tar создаётся
+    КАЖДЫМ push на самом устройстве, поэтому в нём сохранены исходные владелец
+    и права — откат возвращает рабочее состояние ДО экспериментов)."""
+    adb_path = args.adb or shutil.which("adb")
+    if not adb_path:
+        raise RuntimeError("adb не найден — укажи --adb")
+    root = device_has_root(adb_path)
+    if not root:
+        raise RuntimeError("нет root: rescue работает через su")
+    adb_run(adb_path, ["shell", "am force-stop %s" % PKG])
+    print("[i] игра закрыта")
+    out = device_sh(adb_path, root, "ls -1 /data/local/tmp 2>/dev/null").decode("utf-8", "replace")
+    tars = sorted({l.strip() for l in out.splitlines()
+                   if l.strip().startswith("sk_pre_backup_") and l.strip().endswith(".tar")})
+    if not tars:
+        raise RuntimeError("pre-backup'ов нет (/data/local/tmp/sk_pre_backup_*.tar). "
+                           "Если удалял их вручную — остался только план с бэкапами на ПК "
+                           "(*.bak_*) и LDPlayer-бэкапом приложения")
+    print("[i] найдены pre-backup'ы (новее сверху):")
+    for i, t in enumerate(reversed(tars), 1):
+        print("    %d) %s" % (i, t))
+    pick = tars[-1]
+    if args.pick:
+        if args.pick in tars:
+            pick = args.pick
+        elif args.pick.isdigit() and 1 <= int(args.pick) <= len(tars):
+            pick = list(reversed(tars))[int(args.pick) - 1]
+        else:
+            raise RuntimeError("нет pre-backup'а %r (см. список выше)" % args.pick)
+    app_uid = _app_uid(adb_path, root)
+    device_sh(adb_path, root, "tar -xf /data/local/tmp/%s -C /data/data/%s" % (pick, PKG),
+              timeout=600)
+    _fix_ownership(adb_path, root, app_uid)
+    if not getattr(args, "keep_new", False):
+        try:
+            lst = device_sh(adb_path, root,
+                            "find /data/data/%s/files -maxdepth 1 -type f -name '*.data.new'" % PKG
+                            ).decode("utf-8", "replace").split()
+            if lst:
+                device_sh(adb_path, root, "rm -f %s" % " ".join(lst))
+        except Exception:
+            pass
+    print("[ok] восстановлено из %s (uid %d восстановлен)" % (pick, app_uid))
+    print("[i] ПЕРВЫЙ ЗАПУСК — ОФЛАЙН (авиарежим/сеть выключена): иначе игра может "
+          "подтянуть облако поверх отката")
+    print("[i] если игра снова висит на 100%% уже на ЭТОМ состоянии — проблема не в правках, "
+          "а в окружении (сеть/Google-аккаунт); разбирайся с doctor: "
+          "python sk_save_editor.py doctor -p <профиль>")
+    return 0
+
+
+def cmd_doctor(args):
+    """Диагностика (read-only): владелец/права файлов на устройстве, .aes/.new,
+    сверка md5 с локальным профилем, разбор ключевых секций профиля."""
+    adb_path = args.adb or shutil.which("adb")
+    if not adb_path:
+        raise RuntimeError("adb не найден — укажи --adb")
+    root = device_has_root(adb_path)
+    if not root:
+        raise RuntimeError("нет root: doctor смотрит /data/data через su")
+    try:
+        pid = device_sh(adb_path, root, "pidof %s" % PKG).decode().strip()
+        if pid:
+            print("[!] ИГРА ЗАПУЩЕНА (pid %s) — файлы меняются на лету, сверка md5 условна" % pid[:20])
+    except Exception:
+        pass
+    app_uid = _app_uid(adb_path, root)
+    print("[i] uid приложения: %d" % app_uid)
+    problems = []
+
+    def ls_stat(sub):
+        out = device_sh(adb_path, root, "ls -ln /data/data/%s/%s" % (PKG, sub)
+                        ).decode("utf-8", "replace")
+        names, bad_uid, specials = [], 0, []
+        for line in out.splitlines():
+            f = line.split(None, 7)
+            if len(f) < 8 or not f[0].startswith("-"):
+                continue  # total/dir/симлинк/кривая строка
+            names.append(f[7])
+            try:
+                if int(f[2]) != app_uid:
+                    bad_uid += 1
+            except ValueError:
+                pass
+            if f[7].endswith((".data.new", ".aes", ".rijndael")):
+                specials.append(f[7])
+        return names, bad_uid, specials
+
+    for sub in ("files", "shared_prefs"):
+        names, bad_uid, specials = ls_stat(sub)
+        print("[i] %s: %d файлов, не-владельцев (чужой uid): %d" % (sub, len(names), bad_uid))
+        if specials:
+            print("    спец-файлы: %s" % ", ".join(sorted(specials)[:12]))
+        if bad_uid:
+            problems.append("%s: %d файлов с чужим uid (лечится: rescue или повторный push)" % (sub, bad_uid))
+
+    prof = os.path.abspath(args.profile) if args.profile else None
+    if prof:
+        for sub in ("files", "shared_prefs"):
+            pd = os.path.join(prof, sub)
+            if not os.path.isdir(pd):
+                print("[!] в профиле нет %s/ — сравнение неполное" % sub)
+                continue
+            loc = {}
+            for fn in sorted(os.listdir(pd)):
+                lp = os.path.join(pd, fn)
+                if os.path.isfile(lp) and not _BAK_RE.search(fn) and not fn.endswith((".data.new", "_sk_push.tar")):
+                    with open(lp, "rb") as f:
+                        loc["/data/data/%s/%s/%s" % (PKG, sub, fn)] = hashlib.md5(f.read()).hexdigest()
+            dev = _device_md5(adb_path, root, sorted(loc))
+            ok = diff = extra = 0
+            for p, h in loc.items():
+                if p not in dev:
+                    extra += 1
+                    print("[!] нет на устройстве: %s" % os.path.basename(p))
+                elif dev[p] != h:
+                    diff += 1
+                    print("[!] РАЗЛИЧАЕТСЯ: %s" % os.path.basename(p))
+                else:
+                    ok += 1
+            print("[i] сверка с профилем %s/%s: совпало %d, различаются %d, нет на устройстве %d"
+                  % (prof, sub, ok, diff, extra))
+            if diff or extra:
+                problems.append("профиль %s/%s не совпадает с устройством (%d/%d)" % (sub, ok, diff + extra))
+    else:
+        print("[i] профиль не задан (-p ПУТЬ) — md5-сверка пропущена, сравниваю только владельца")
+
+    if prof:
+        prefs_path = autodetect_prefs(prof) or autodetect_prefs(os.path.join(prof, "files"))
+        if prefs_path:
+            p = load_prefs_xml(prefs_path)
+            print("[i] prefs: cloudSaveId=%s, Rij=%s, AES256=%s"
+                  % (p.get("cloudSaveId"),
+                     "есть" if p.get(PREF_RIJ_KEY) else "НЕТ",
+                     "есть" if p.get(PREF_AES_KEY) else "НЕТ"))
+            with open(prefs_path, "r", encoding="utf-8", errors="replace") as f:
+                _ptxt = f.read()
+            has = sorted(re.findall(r'name="(has_[a-z_]+_data)"', _ptxt))
+            if has:
+                print("[i] prefs: флаги секций: %s" % ", ".join(has))
+        else:
+            print("[!] playerprefs.xml в профиле не найден")
+        for rel, sect, fields in (("files/setting.data", "settingData", ["UseRijData", "UseNewtonJsonData"]),
+                                  ("files/game.data", "gameData", ["gameVersion", "gems", "lastGems"])):
+            fp = os.path.join(prof, rel.replace("/", os.sep))
+            if not os.path.isfile(fp):
+                continue
+            try:
+                d = load_doc(fp, prefs_path)
+                sd = d.obj if d.mode == "section" else (d.obj.get(sect) or {})
+                vals = {k: sd.get(k) for k in fields}
+                print("[i] %s: %s" % (rel, vals))
+            except Exception as e:
+                print("[!] %s не читается: %s" % (rel, e))
+        for fn in sorted(os.listdir(os.path.join(prof, "files"))):
+            if fn.startswith("item_data") and fn.endswith(".data"):
+                try:
+                    d = load_doc(os.path.join(prof, "files", fn), prefs_path)
+                    it = d.obj if d.mode == "section" else (d.obj.get("itemData") or {})
+                    m, b, s = it.get("materials") or {}, it.get("blueprints") or {}, it.get("seeds") or {}
+                    print("[i] %s: materials=%d blueprints=%d seeds=%d" % (fn, len(m), len(b), len(s)))
+                except Exception as e:
+                    print("[!] %s не читается: %s" % (fn, e))
+    print()
+    if problems:
+        print("DOCTOR: %d проблем(ы):" % len(problems))
+        for pr in problems:
+            print("  - %s" % pr)
+        return 1
+    print("DOCTOR: критичных проблем не видно (владелец ок; сверь md5 с профилем, если задан -p)")
     return 0
 
 
@@ -1530,6 +1905,41 @@ def cmd_selftest(args):
           and _push_tar_filter(ti("files/desktop.ini")) is None
           and _push_tar_filter(ti("shared_prefs/x.xml.bak_20261111_213343")) is None
           and _push_tar_filter(ti("files/game.data")) is not None)
+
+    # --- 10) grant-*: синтез предметов на ПУСТОМ аккаунте (materials={} и т.д.) ---
+    cat = json.loads(_IDS_870_JSON)
+    check("каталог id: парсится и чистый",
+          len(cat["materials"]) >= 70 and len(cat["seeds"]) >= 30 and len(cat["blueprints"]) >= 25
+          and all(re.fullmatch(r"[A-Za-z0-9_]+", i)
+                  for i in cat["materials"] + cat["seeds"] + list(cat["blueprints"])))
+    fitem = os.path.join(tmp, "item_data.data")
+    with open(fitem, "wb") as f:
+        f.write(encode_any({"materials": {}, "blueprints": {}, "seeds": {}, "forgeWeapons": []},
+                           "utf8", "des-default", prefs))
+    d_it = load_doc(fitem)
+    ch = run_preset(d_it, "grant-materials", ["499"], {})
+    check("grant-materials создаёт записи на пустом",
+          len(d_it.obj["materials"]) == len(cat["materials"])
+          and all(v == 499 for v in d_it.obj["materials"].values()),
+          "%d id, правок %d" % (len(d_it.obj["materials"]), len(ch)))
+    run_preset(d_it, "grant-all", ["99"], {})
+    check("grant-all: seeds+blueprints",
+          len(d_it.obj["seeds"]) == len(cat["seeds"])
+          and len(d_it.obj["blueprints"]) == len(cat["blueprints"]))
+    save_doc(d_it, verify=True)
+    d_it2 = load_doc(fitem)
+    check("grant round-trip (des-default)",
+          d_it2.obj["materials"] == d_it.obj["materials"]
+          and d_it2.obj["blueprints"] == d_it.obj["blueprints"])
+
+    # --- 11) push tar: владелец/права Android вшиты в члены ---
+    ti_d = tarfile.TarInfo("files")
+    ti_d.type = tarfile.DIRTYPE
+    flt = _push_tar_ownership(10123)
+    d2, f2 = flt(ti_d), flt(ti("files/game.data"))
+    check("push tar: uid/режимы Android",
+          d2.uid == f2.uid == 10123 and d2.mode == 0o771 and f2.mode == 0o660
+          and d2.gid == 10123)
 
     shutil.rmtree(tmp, ignore_errors=True)
     print()
@@ -1828,9 +2238,12 @@ def main(argv=None):
                "  %(prog)s info ./device_saves\n"
                "  %(prog)s show game.data gems\n"
                "  %(prog)s preset game.data gems 800000\n"
+               "  %(prog)s preset item_data.data grant-all 499   # пустой аккаунт\n"
                "  %(prog)s preset cloud.bin currencies\n"
                "  %(prog)s pull -o ./device_saves --kill\n"
                "  %(prog)s push ./device_saves --kill\n"
+               "  %(prog)s rescue                     # откат на pre-backup push\n"
+               "  %(prog)s doctor -p ./device_saves   # диагностика устройства\n"
                "  %(prog)s selftest\n")
     ap.add_argument("--prefs", help="playerprefs.xml (для .aes-ключей и cloudSaveId)")
     ap.add_argument("--yes", "-y", action="store_true", help="не спрашивать подтверждение")
@@ -1897,6 +2310,7 @@ def main(argv=None):
     sp.add_argument("file")
     sp.add_argument("name")
     sp.add_argument("pargs", nargs="*")
+    sp.add_argument("--ids-file", help="JSON с дополнительными id для grant-*: {\"materials\":[...], \"seeds\":[...], \"blueprints\":{...}}")
     sp.set_defaults(fn=cmd_preset)
 
     sp = sub.add_parser("backup", parents=[common], help="бэкап каталога сейвов")
@@ -1928,6 +2342,17 @@ def main(argv=None):
     sp.add_argument("--keep-new", action="store_true",
                     help="НЕ удалять *.data.new на устройстве (не рекомендуется)")
     sp.set_defaults(fn=cmd_push)
+
+    sp = sub.add_parser("rescue", help="откатить устройство на pre-backup последнего push (root)")
+    sp.add_argument("pick", nargs="?", help="имя sk_pre_backup_*.tar или номер в списке (1 = новейший)")
+    sp.add_argument("--adb", help="путь к adb")
+    sp.add_argument("--keep-new", action="store_true", help="НЕ удалять *.data.new после отката")
+    sp.set_defaults(fn=cmd_rescue)
+
+    sp = sub.add_parser("doctor", help="диагностика устройства: владелец/права, .aes/.new, сверка md5 с профилем")
+    sp.add_argument("-p", "--profile", help="локальный профиль (папка с files/ и shared_prefs/) для md5-сверки")
+    sp.add_argument("--adb", help="путь к adb")
+    sp.set_defaults(fn=cmd_doctor)
 
     sp = sub.add_parser("selftest", help="проверка всех форматов и правок")
     sp.set_defaults(fn=cmd_selftest)

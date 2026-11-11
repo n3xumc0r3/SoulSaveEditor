@@ -80,6 +80,12 @@ python tools\sk_prefs.py info .\profile\shared_prefs\com.ChillyRoom.DungeonShoot
 > пресет не молчит, а подсказывает соседние копии секции — у 8.7.0 `<sec>.data`
 > часто пустой шаблон, а реальные предметы лежат в `<sec>_<accountId>_.data`.
 > Правь обе копии (как в блоке ниже).
+>
+> **С версии 1.1.0**: если аккаунт ПУСТОЙ (секция пуста и там, и там — на свежем
+> аккаунте материалов не бывает ВООБЩЕ), масс-пресеты править нечего — используй
+> синтез `grant-materials` / `grant-seeds` / `grant-blueprints` / `grant-all`:
+> они СОЗДАЮТ записи из каталога реальных id 8.7.0 (источники — itemData
+> облачного дампа и литералы global-metadata.dat; ни один id не выдуман).
 
 ```bat
 :: алмазы: gems = lastGems = N, varGems = 0, cumulativeGems += — леджер согласован
@@ -95,14 +101,20 @@ python tools\sk_save_editor.py preset .\profile\files\game.data unlock-heroes --
 python tools\sk_save_editor.py preset .\profile\files\game.data heroes-level 8 --yes
 python tools\sk_save_editor.py preset .\profile\files\game.data unlock-pets --yes
 
-:: крафт: все чертежи + материалы/семена (только те, что уже есть в сейве;
-:: если materials/seeds пусты — пресет честно откажется, это норма)
+:: крафт: все чертежи + материалы/семена (только те, что уже есть в сейве)
 python tools\sk_save_editor.py preset .\profile\files\item_data.data research-all --yes
 python tools\sk_save_editor.py preset .\profile\files\item_data.data all-materials 499 --yes
 python tools\sk_save_editor.py preset .\profile\files\item_data.data all-seeds 99 --yes
 python tools\sk_save_editor.py preset .\profile\files\item_data_235288966_.data research-all --yes
 python tools\sk_save_editor.py preset .\profile\files\item_data_235288966_.data all-materials 499 --yes
 python tools\sk_save_editor.py preset .\profile\files\item_data_235288966_.data all-seeds 99 --yes
+
+:: ПУСТОЙ аккаунт (материалов/семян/чертежей нет ВООБЩЕ — править нечего):
+:: синтез из каталога реальных id 8.7.0 (облачный дамп + метадата игры; игра
+:: игнорирует неизвестные id, так что попытка безобидна). Создаёт недостающие записи:
+python tools\sk_save_editor.py preset .\profile\files\item_data_235288966_.data grant-all 499 --yes
+:: или по частям: grant-materials 499 / grant-seeds 99 / grant-blueprints
+:: свой список id: --ids-file мой.json (формат — см. `presets`)
 
 :: карта возрождения (gameData.rebornCard + restoreKeys)
 python tools\sk_save_editor.py preset .\profile\files\game.data reborn-card --yes
@@ -147,23 +159,49 @@ python tools\sk_prefs.py set %PREFS% 235288966_reborn_card 10 --yes
 python tools\sk_save_editor.py push .\profile --kill --adb "D:\LDPlayer\LDPlayer14\adb.exe"
 ```
 
-Push (v1.0.1) делает:
+Push (v1.1.0) делает:
 
 1. страховочный tar текущего профиля на устройстве
    (`/data/local/tmp/sk_pre_backup_<ts>.tar`);
-2. локальный tar профиля — **без** `.bak_*`, `.data.new` и мусора Windows
+2. определяет uid приложения ДО распаковки и **вшивает владельца/права Android
+   в члены tar** (uid приложения, каталоги 771, файлы 660) — раньше tar с
+   Windows нёс uid=0/0666/0777, root-распаковка делала файлы сейва root:root
+   (в логе выглядело как «владелец файлов восстановлен: uid 0»), из-за чего
+   игра могла зависать на 100% при попытке писать сейв;
+3. локальный tar профиля — **без** `.bak_*`, `.data.new` и мусора Windows
    (`desktop.ini`/`Thumbs.db`);
-3. доставку tar: `adb push` + контроль размера на устройстве; если push
+4. доставку tar: `adb push` + контроль размера на устройстве; если push
    не сработал (старые adb LDPlayer молча падают на путях) — автоматически
    заливает base64-чанками через `exec-out` (тот же канал, что у pull,
    бинарно-безопасно; путь назначения — только прямые слэши, старый баг
    `os.path.join` с `\` в имени удалён);
-4. распаковку в `/data/data/<pkg>`, удаление временных `*.data.new` на
-   устройстве (иначе первый запуск может откатить ими свежие `.data`),
-   выборочную сверку размеров ключевых файлов, `chown` на uid приложения
-   и `restorecon` (SELinux-контекст);
+5. распаковку в `/data/data/<pkg>`, **полную md5-сверку КАЖДОГО залитого файла**
+   с локальным (раньше сверялись размеры только двух), удаление временных
+   `*.data.new` на устройстве (иначе первый запуск может откатить ими свежие
+   `.data`), `chown`/`chmod`/`restorecon` как страховку к вшитым правам.
 
 Отключить удаление `.new`: `--keep-new` (не рекомендуется).
+
+### 5.1. Если игра после push висит на 100%
+
+Сейв при этом обычно ЦЕЛ (игра просто не доходит до загрузки/сброса). Порядок:
+
+```bat
+:: 1) откатить устройство на страховочный tar (список + выбор, владелец чинится сам)
+python tools\sk_save_editor.py rescue --adb "D:\LDPlayer\LDPlayer14\adb.exe"
+
+:: 2) запустить игру ОФЛАЙН (авиарежим/сеть эмулятора выключена).
+::    Если на откоченном состоянии игра грузится — причина в правках:
+::    применяй пресеты по одному и push после каждого.
+
+:: 3) если висит ДАЖЕ на откоченном — проблема в окружении, а не в сейве:
+::    сеть/Google-аккаунт (GPGS ждёт сеть на старте), запуск НЕ в офлайне.
+::    Диагностика (владелец файлов, .aes/.new, md5-сверка с профилем, флаги UseRij):
+python tools\sk_save_editor.py doctor -p .\profile --adb "D:\LDPlayer\LDPlayer14\adb.exe"
+```
+
+Норма: первый запуск после push — только офлайн; сеть включать после того,
+как убедились, что локальный сейв загрузился.
 
 ## 6. Первый запуск — важное
 
@@ -211,5 +249,7 @@ python tools\sk_save_editor.py write .\profile\files\mall_reload_data_235288966_
 | pull отдал только 2–3 файла | Это старый баг tar-потока (исправлен в этой версии): перескачай `sk_save_editor.py` из репо и повтори; при повторении — `--debug` |
 | `adb pull /data/data/...` даёт `0 files pulled` | Норма: shell-пользователь не имеет доступа к `/data/data` — нужен root-pull (наш скрипт) |
 | `find: bad arg '...'` в ручных командах | Кавычки съедаются PowerShell/adb при передаче глобов (`*data*`); в скрипте глобов нет — используй его |
+| Игра висит на 100% после push | см. §5.1: `rescue` (откат на pre-backup) -> запуск офлайн -> если и на откате висит — окружение (сеть/GPGS), а не сейв; `doctor -p <профиль>` покажет владельца файлов и md5-сверку |
+| В логе push было «владелец файлов восстановлен: uid 0» | Баг v1.0.1 (uid снимался с каталога ПОСЛЕ распаковки, когда тот уже стал root). Исправлено в v1.1.0: uid берётся до распаковки и вшивается в tar; вылечить старый прогон — `rescue` или повторный `push` новой версией |
 | playerprefs «UTF-8/ASCII» в `info`, а раньше был UTF-16 | На устройстве файл UTF-8; UTF-16LE+BOM — артефакт PowerShell-редиректа при ручном `adb shell ... > file`. Обе кодировки теперь читаются автоматически |
 | После push правки слетели | (а) игра была запущена при push — повтори с `--kill`; (б) игра подтянула облако — первый запуск офлайн (§6); (в) вручную удали `*.data.new`: `adb shell "su -c 'rm /data/data/com.ChillyRoom.DungeonShooter/files/*.data.new'"` и перезалей |
