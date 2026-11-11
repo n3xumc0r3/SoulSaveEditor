@@ -20,6 +20,7 @@ Reverse-engineering notes and tools for Soul Knight 8.7.0 save/cloud systems liv
 - [`docs/CLOUD-SAVE.md`](docs/CLOUD-SAVE.md) — cloud save architecture (GPGS legacy + ChillyRoom cloud), ban/risk system
 - [`docs/CLOUD-DUMP-870.md`](docs/CLOUD-DUMP-870.md) — actual GPGS snapshot dump: cloud save is **plain UTF-16LE JSON**; cloud **write path proven** and **first real edit committed** (sha-verified, 11.11.2026)
 - [`docs/EDITOR.md`](docs/EDITOR.md) — quickstart for the flagship save editor
+- [`docs/GUIDE-TOP-SAVE.md`](docs/GUIDE-TOP-SAVE.md) — step-by-step cookbook: full top-save patch (both halves, exact commands, longplay-tier values)
 - [`tools/sk_save_editor.py`](tools/sk_save_editor.py) — **flagship save editor**: adb pull/push of the game profile (root), auto-detects every crypto layer (plain JSON / UTF-16LE / legacy XOR game.data / DES `crst1`+`iambo` / SDK-DES / Rijndael-AES-256 with per-install keys from playerprefs), curated presets (gems with consistent ledger, unlock heroes/pets, research blueprints, max materials…), path-based edits, per-write backups + round-trip verification, protected-profile-field guards, built-in `selftest`
 - [`tools/sk_prefs.py`](tools/sk_prefs.py) — playerprefs (prefs.xml) parser/editor: schema/mirror/blob tools, surgical text edits with backup + round-trip verify, gems ledger, unlock-heroes with per-namespace bool casing
 - [`tools/`](tools/) — frida snapshot dump/read/write scripts, cloud-save JSON patcher, local-save decrypt/encrypt CLI (`sk_local_save.py`), decryptors, dump analyzers

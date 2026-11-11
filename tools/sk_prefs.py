@@ -400,6 +400,52 @@ def cmd_unlock_heroes(a):
     edit_keys(a.prefs, ops, yes=a.yes)
 
 
+def cmd_unlock_plants(a):
+    """Все растения: <UID>_pN_unlock -> true, LOCALpN_unlock -> True."""
+    text, bom, entries = iter_all(a.prefs)
+    uid = detect_uid(entries)
+    if not uid:
+        sys.exit(" accountId не найден")
+    ops = []
+    for name in sorted(entries):
+        if re.fullmatch(rf"{uid}_p\d+_unlock", name):
+            ops.append((name, "true", "string"))
+        elif re.fullmatch(r"LOCALp\d+_unlock", name):
+            ops.append((name, "True", "string"))
+    if a.extend:
+        ids = sorted({int(g) for k in entries
+                      for g in re.findall(r"p(\d+)_unlock$", k)})
+        for i in ids:
+            for key, val in ((f"{uid}_p{i}_unlock", "true"),
+                             (f"LOCALp{i}_unlock", "True")):
+                if key not in entries:
+                    ops.append((key, val, "string"))
+    if not ops:
+        print("ключей *_pN_unlock не найдено")
+        return
+    print(f"[i] будет выставлено {len(ops)} ключей (регистр bool по неймспейсу)")
+    edit_keys(a.prefs, ops, yes=a.yes)
+
+
+def cmd_unlock_skills(a):
+    """Все скиллы героев: <UID>_c_<Name>_skill_N_unlock -> 1 (только <UID>_,
+    LOCAL-зеркала для скиллов на устройстве не observed)."""
+    text, bom, entries = iter_all(a.prefs)
+    uid = detect_uid(entries)
+    if not uid:
+        sys.exit(" accountId не найден")
+    ops = []
+    rx = re.compile(rf"{uid}_c_[A-Za-z]+_skill_\d+_unlock$")
+    for name in sorted(entries):
+        if rx.fullmatch(name):
+            ops.append((name, "1", "int"))
+    if not ops:
+        print("ключей *_c_<Hero>_skill_N_unlock не найдено")
+        return
+    print(f"[i] будет выставлено {len(ops)} ключей скиллов в 1")
+    edit_keys(a.prefs, ops, yes=a.yes)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -407,7 +453,9 @@ def main():
     for name, fn in [("info", cmd_info), ("schema", cmd_schema), ("dump", cmd_dump),
                      ("blobs", cmd_blobs), ("get", cmd_get), ("set", cmd_set),
                      ("del", cmd_del), ("mirror", cmd_mirror),
-                     ("gems", cmd_gems), ("unlock-heroes", cmd_unlock_heroes)]:
+                     ("gems", cmd_gems), ("unlock-heroes", cmd_unlock_heroes),
+                     ("unlock-plants", cmd_unlock_plants),
+                     ("unlock-skills", cmd_unlock_skills)]:
         p = sub.add_parser(name)
         p.add_argument("prefs", help="путь к prefs.xml (v2.playerprefs.xml)")
         if name == "dump":
@@ -432,11 +480,12 @@ def main():
             p.add_argument("n", type=int, help="новое значение gems")
             p.add_argument("--all-ns", action="store_true", default=True,
                            help="также LOCALlast_gems (по умолчанию вкл)")
-        if name in ("set", "del", "gems", "unlock-heroes"):
+        if name in ("set", "del", "gems", "unlock-heroes", "unlock-plants",
+                    "unlock-skills"):
             p.add_argument("--yes", action="store_true")
-        if name == "unlock-heroes":
+        if name in ("unlock-heroes", "unlock-plants"):
             p.add_argument("--extend", action="store_true",
-                           help="создать ключи для всех виденных id героев")
+                           help="создать ключи для всех виденных id")
         p.set_defaults(fn=fn)
     a = ap.parse_args()
     a.fn(a)
@@ -445,4 +494,8 @@ def main():
 import json  # noqa: E402  (используется в cmd_dump)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except BrokenPipeError:  # piped into `head` etc.
+        import os
+        os._exit(0)
