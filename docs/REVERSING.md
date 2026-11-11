@@ -241,11 +241,15 @@ decrept("1\"8ku|TJ",   "PASSWORD")  ->  b"abo123\x00\x00"   ; DES-IV
 |---|---|
 | `tools/sk870_metadata_decode.py` | декодер метадаты (проверен) |
 | `tools/sk870_metadata_dump.py` | дамп имён типов/методов/полей из метадаты (46 241 тип) |
+| `tools/sk870_save_fields.py` | экстрактор классов/полей/методов из декодированной метадаты (v31; счётчики typeDef: method/prop/**field**/event/… — порядок подтверждён тайлингом) |
+| `tools/sk870_save_classes.json` | выжимка полей 19 ключевых классов сейвов (AboGameData, ItemData, StatisticData, SettingData, …) |
 | `tools/sk870_crept_crypto.py` | poly-XOR + SDK DES (selftest) |
 | `tools/sk_local_save.py` | CLI расшифровки/шифровки локальных `.data` (автодетект по имени, `ids` — вытянуть `cloudSaveId` из playerprefs.xml) |
 | `docs/RE-NOTES.md` | шпаргалка: регионы, оффсеты, строки, классы |
+| `docs/LOCAL-SAVE-870.md` | **как 8.7.0 хранит/парсит локальные сейвы**: карта файлов↔классов, поля всех секций, поведение при незаписанных полях |
 | `docs/CLOUD-SAVE.md` | облачная система сохранений (GPV2) и система банов |
 | `download/sk870_crypto.py` (вне репо) | CLI по всем схемам сразу |
+| `download/sk870_types_fields.json` (вне репо, 12 МБ) | полная карта класс→поля, 46 241 класс |
 
 ---
 

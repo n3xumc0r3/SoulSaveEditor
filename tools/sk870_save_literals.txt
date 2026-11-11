@@ -1,0 +1,1117 @@
+
+
+Save path: 
+
+Saved at: 
+' AS encrypted KEY '
+' passed to AudioMixer.TransitionToSnapshot is not a snapshot from AudioMixer '
+' saved to: 
+(SaveAudio) Origin file path: 
+(SaveGIF) Origin file path: 
+(SaveMP4) Origin file path: 
+*.json
+, save=
+,ApplyAttackDamageMultiplier:
+,AttackDamageMultiplier:
+,DamageMult:
+,DamageMultiplier:
+,ForgeMaterialWeaponList:
+,LegacyPlayerDamageMultiplier:
+,NewPlayerGemLimit:
+,ReplaceGem:
+,UseOwnForgeMaterials:
+- '.cursor/mcp.json' file must have no json syntax errors.
+- '.vs/mcp.json' file must have no json syntax errors.
+- '.vscode/mcp.json' file must have no json syntax errors.
+- 'UserSettings/mcp.json' file must have no json syntax errors.
+- Check that the configuration file .mcp.json exists
+- Ensure Copilot CLI is launched from the project root (the folder containing '.mcp.json')
+- Ensure Gemini CLI is installed and accessible from terminal
+- Requires GitHub Copilot CLI v1.0.12+ which discovers '.mcp.json' at project level
+- Restart Gemini after configuration changes
+- Start Gemini with --debug flag, it helps MCP server to work properly with Gemini in stdio transport mode.
+------------EndBeforeSavedLog------------
+-----------AddBeforeSavedLog-------------
+./cert.json
+.aes
+.data
+.database.chinacloudapi.cn
+.database.cloudapi.de
+.database.usgovcloudapi.net
+.database.windows.net
+.gemini
+.gemini/skills
+.json
+.mcp.json
+/Backup/FetchGameData
+/Backup/GetBlobSave
+/Backup/UnBindHarmonyInfo
+/BlobSave/Download
+/BlobSave/Upload
+/Canvas/text_gems/GemLayout/Text
+/DefineCloudSaveID.json
+/Migration/Saves
+/ModeDefence/Data/map_graph.json
+/PromotionConfig.json
+/PromotionInfo2Config.json
+/RealNameVacation/VacationAndWorkdayConfig.data
+/Resources/WeaponInfo.json
+/Resources/WeaponItem.json
+/backup.data
+/battle.data
+/battles.data
+/bp_data.data
+/cloud_save_fix_{0}_level_statistics_backup
+/config.json
+/datas.json
+/dynamic_config.json
+/encrypted_lua
+/encrypted_lua/
+/escape_run_save.data
+/escape_run_save_
+/escape_season_data.data
+/game.data
+/hot_update_manifest.json
+/item_data.data
+/loading?redirectTo=/game-save-migration?distroId=
+/mall_reload_data.data
+/manifest.json
+/misc_data.data
+/monsrise_data.data
+/patchlist.json
+/pvp_data.data
+/recordSave.data
+/recordSave_
+/sandbox_config.data
+/sandbox_maps.data
+/season_data.data
+/setting.data
+/statistic.data
+/task.data
+/weapon_evolution_data.data
+1000Gem
+200Gem
+500Gem
+<Relationship Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing{0}.xml" Id="drawing{1}" />
+<ds.DataColumn.DataColumn|API> {0}, columnName='{1}', expr='{2}', type={3}
+<ds.DataColumn.set_AllowDBNull|API> {0}, {1}
+<ds.DataColumn.set_AutoIncrementSeed|API> {0}, {1}
+<ds.DataColumn.set_AutoIncrementStep|API> {0}, {1}
+<ds.DataColumn.set_AutoIncrement|API> {0}, {1}
+<ds.DataColumn.set_ColumnMapping|API> {0}, {1}
+<ds.DataColumn.set_ColumnName|API> {0}, '{1}'
+<ds.DataColumn.set_DefaultValue|API> {0}
+<ds.DataColumn.set_Expression|API> {0}, '{1}'
+<ds.DataColumn.set_MaxLength|API> {0}, {1}
+<ds.DataColumn.set_Namespace|API> {0}, '{1}'
+<ds.DataColumn.set_Prefix|API> {0}, '{1}'
+<ds.DataColumn.set_ReadOnly|API> {0}, {1}
+<ds.DataColumn.set_Unique|API> {0}, {1}
+<ds.DataRelation.CheckNestedRelations|INFO> {0}
+<ds.DataRelation.Clone|INFO> {0}, destination={1}
+<ds.DataRelation.Create|INFO> {0}, relationName='{1}', createConstraints={2}
+<ds.DataRelation.DataRelation|API> {0}, relationName='{1}', parentColumn={2}, childColumn={3}, createConstraints={4}
+<ds.DataRelation.OnPropertyChanging|INFO> {0}
+<ds.DataRelation.set_Nested|API> {0}, {1}
+<ds.DataRelationCollection.AddCore|INFO> {0}, relation={1}
+<ds.DataRelationCollection.Add|API> {0}, relation={1}
+<ds.DataRelationCollection.Clear|API> {0}
+<ds.DataRelationCollection.OnCollectionChanged|INFO> {0}
+<ds.DataRelationCollection.OnCollectionChanging|INFO> {0}
+<ds.DataRelationCollection.RegisterName|INFO> {0}, name='{1}'
+<ds.DataRelationCollection.RemoveCore|INFO> {0}, relation={1}
+<ds.DataRelationCollection.Remove|API> {0}, relation={1}
+<ds.DataRelationCollection.UnregisterName|INFO> {0}, name='{1}'
+<ds.DataRelationCollection.add_CollectionChanged|API> {0}
+<ds.DataRelationCollection.remove_CollectionChanged|API> {0}
+<ds.DataRow.AcceptChanges|API> {0}
+<ds.DataRow.RejectChanges|API> {0}
+<ds.DataRow.SetColumnError|API> {0}, column={1}, error='{2}'
+<ds.DataRow.set_RBTreeNodeId|INFO> {0}, value={1}
+<ds.DataRow.set_RowError|API> {0}, value='{1}'
+<ds.DataSet.Clear|API> {0}
+<ds.DataSet.Clone|API> {0}
+<ds.DataSet.DataSet|API> {0}
+<ds.DataSet.EnableConstraints|INFO> {0}
+<ds.DataSet.InferSchema|INFO> {0}, mode={1}
+<ds.DataSet.Merge|API> {0}, dataSet={1}
+<ds.DataSet.Merge|API> {0}, dataSet={1}, preserveChanges={2}, missingSchemaAction={3}
+<ds.DataSet.ReadXmlDiffgram|INFO> {0}
+<ds.DataSet.ReadXmlSchema|INFO> {0}, reader, denyResolving={1}
+<ds.DataSet.ReadXml|INFO> {0}, denyResolving={1}
+<ds.DataSet.ReadXml|INFO> {0}, mode={1}, denyResolving={2}
+<ds.DataSet.Reset|API> {0}
+<ds.DataSet.ValidateCaseConstraint|INFO> {0}
+<ds.DataSet.ValidateLocaleConstraint|INFO> {0}
+<ds.DataSet.WriteXmlSchema|INFO> {0}, schemaFormat={1}
+<ds.DataSet.WriteXml|API> {0}, mode={1}
+<ds.DataSet.set_DataSetName|API> {0}, '{1}'
+<ds.DataSet.set_EnforceConstraints|API> {0}, {1}
+<ds.DataSet.set_Locale|API> {0}
+<ds.DataSet.set_Namespace|API> {0}, '{1}'
+<ds.DataTable.BeginLoadData|API> {0}
+<ds.DataTable.Clear|INFO> {0}, clearAll={1}
+<ds.DataTable.Clone|INFO> {0}, cloneDS={1}
+<ds.DataTable.DataTable|API> {0}
+<ds.DataTable.EndLoadData|API> {0}
+<ds.DataTable.InsertRow|INFO> {0}, row={1}
+<ds.DataTable.Merge|API> {0}, table={1}, preserveChanges={2}, missingSchemaAction={3}
+<ds.DataTable.OnColumnChanged|INFO> {0}
+<ds.DataTable.OnColumnChanging|INFO> {0}
+<ds.DataTable.OnPropertyChanging|INFO> {0}
+<ds.DataTable.OnRowChanged|INFO> {0}
+<ds.DataTable.OnRowChanging|INFO> {0}
+<ds.DataTable.OnRowDeleted|INFO> {0}
+<ds.DataTable.OnRowDeleting|INFO> {0}
+<ds.DataTable.OnTableCleared|INFO> {0}
+<ds.DataTable.OnTableClearing|INFO> {0}
+<ds.DataTable.OnTableNewRow|INFO> {0}
+<ds.DataTable.ReadXmlSchema|INFO> {0}, denyResolving={1}
+<ds.DataTable.Reset|API> {0}
+<ds.DataTable.RestoreIndexEvents|Info> {0}, {1}
+<ds.DataTable.SuspendIndexEvents|Info> {0}, {1}
+<ds.DataTable.WriteXmlSchema|API> {0}
+<ds.DataTable.WriteXml|API> {0}, mode={1}
+<ds.DataTable.set_Locale|API> {0}
+<ds.DataTable.set_Namespace|API> {0}, value='{1}'
+<ds.DataTable.set_Prefix|API> {0}, value='{1}'
+<ds.DataTable.set_TableName|API> {0}, value='{1}'
+<ds.DataTableCollection.Add|API> {0}, table={1}
+<ds.DataTableCollection.CanRemove|INFO> {0}, table={1}, fThrowException={2}
+<ds.DataTableCollection.Clear|API> {0}
+<ds.DataTableCollection.DataTableCollection|INFO> {0}, dataSet={1}
+<ds.DataTableCollection.OnCollectionChanged|INFO> {0}
+<ds.DataTableCollection.OnCollectionChanging|INFO> {0}
+<ds.DataTableCollection.RegisterName|INFO> {0}, name='{1}', tbNamespace='{2}'
+<ds.DataTableCollection.Remove|API> {0}, table={1}
+<ds.DataTableCollection.UnregisterName|INFO> {0}, name='{1}'
+<ds.DataView.AddNew|API> {0}
+<ds.DataView.DataView|INFO> {0}, table={1}, locked={2}
+<ds.DataView.Delete|API> {0}, row={1}
+<ds.DataView.FinishAddNew|INFO> {0}, success={1}
+<ds.DataView.OnListChanged|INFO> {0}, ListChangedType={1}
+<ds.DataView.RemoveSort|API> {0}
+<ds.DataView.SetIndex|INFO> {0}, newSort='{1}', newRowStates={2}
+<ds.DataView.UpdateIndex|INFO> {0}, force={1}
+<ds.DataView.set_Sort|API> {0}, '{1}'
+==== CheckAndTryUploadBrokenSaveData ====
+> For complex input (multi-line strings, code), save the JSON to a file and use `-d @args.json`.
+A YamlAliasNode is an implementation detail and should never be saved.
+AES Authentication Code does not match. This is a super-CRC check on the data in the file after compression and encryption. 
+The file may be damaged.
+A_Gem
+AccountSaveSettingsIds
+Action has changed since FSM was saved. Could not recover parameters. Parameters reset to default values.
+Action script has changed since Fsm was saved: 
+ActiveShop ignored an incomplete snapshot because a complete snapshot is already available.
+ActiveShop recovered order but could not refresh the authoritative snapshot.
+ActiveShopAfterCloudSaveCover
+Activities/H5Fission2025/Textures/fission_save_image_cn.png
+Activities/H5Fission2025/Textures/fission_save_image_cnt.png
+Activities/H5Fission2025/Textures/fission_save_image_en.png
+Activities/H5Fission2025/Textures/fission_save_image_other.png
+Activities/H5Fission2025/Textures/fission_save_image_vnm.png
+Activities/ReturnPlayerH5/Textures/save_image_cn.png
+Activities/ReturnPlayerH5/Textures/save_image_en.png
+ActivityBeginnerPackageManager
+ActivityReturnPlayerPackageManager
+AddWeaponIsEvolvedInSave
+AddWeaponSkinInSave
+AfterDownloadDynamicConfig 找不到动态配置.json，files.len = {0}
+AfterFetchCloudSaveEvent {0}
+AfterSave:
+AhLiangEmitter
+Allocator must be Temp, TempJob or Persistent
+AppleLoginAndCloudSaveAgent : FetchCloudSaveData
+AppleLoginAndCloudSaveAgent : Logout
+AppleLoginAndCloudSaveAgent : SaveCloudSaveData
+AppleLoginAndCloudSaveAgent EmailBindLegency result {0} {1} {2}
+AppleLoginAndCloudSaveAgent EmailBindLegency select 
+AppleLoginAndCloudSaveAgent EmailBindLegency start
+Assets/RGTexture/ui/common/shop_gem.png#shop_gem_0
+Assets/RGTexture/ui/common/shop_gem.png#shop_gem_1
+Assets/RGTexture/ui/common/shop_gem.png#shop_gem_2
+Assets/RGTexture/ui/common/shop_gem.png#shop_gem_3
+Assets/RGTexture/ui/common/shop_gem.png#shop_gem_5
+Assets/RGTexture/ui/common/shop_gem.png#shop_gem_6
+AutoSaveConfig
+AutoUpload Haslogin{0} uid:{1} SupportCloudSaveUpload:{2}
+BaiduMove_SaveUploaded_{0}
+BarragePiercingEmitter
+BattleData.data 为空
+BattlePassSaveDataLoad
+Can't find a symbol arrangement that matches the message. Data codewords: 
+Can't update snapshot contents during conflict resolution.
+CanChangeMaxHP
+CanRestoreChannelLegacyOrder IsReady: {0} GameDataResp: {1}
+Canceling snapshot, there is another snapshot in progress.
+Canvas/title_scene/button_cloud_save
+Canvas/title_scene/button_group_left/button_cloud_save
+CaptureSnapshotFinished Event. Result: 
+ChannelMove_SaveUploaded_{0}_{1}
+Channels.json
+CheckSaveMac:
+CleanCloudSaveCacheConfig {0} {1}
+CleanCloudSaveCacheConfig {0} {1} {2}
+ClearMeleeWeaponRangeMultiplier
+ClickCloudSaveBtn
+ClickDownloadSaveBtn
+ClickUploadSaveBtn
+CloseSaveDrawingButton
+CloudSaveClearLocalData
+CloudSaveClearLocalDataAction
+CloudSaveCover
+CloudSaveDataReferenceTap
+CloudSaveDataViewX
+CloudSaveDataViewX/btn_save_root/btn_save
+CloudSaveFingerTip
+CloudSaveGuide
+CloudSaveGuideState
+CloudSaveInfoBtn
+CloudSaveInfoView
+CloudSaveTapTapDownloadAfterClear
+CloudSaveUserNotice
+Content/Btns/CloudSaveInfoBtn
+CreateARAMCertDataFromHistory 找不到 gem 字段
+DBManager: Encrypted database verification failed for user {0}: {1}
+DBManager: Encrypted database verification passed for user {0}. Messages: {1}
+DBManager: Message count mismatch for user {0}. Plaintext: {1}, Encrypted: {2}
+DBManager: Skipping migration from plaintext to encrypted database, encryption key is not set.
+DBManager: Starting migration from plaintext to encrypted database for user {0}
+DBManager: Using encrypted database for user {0}
+DELETE FROM MessageModel WHERE ConversationId = ?
+DELETE FROM MessageModel WHERE ConversationId NOT IN ('
+DETACH DATABASE encrypted
+Data/DialogData/abing_intro.json
+Data/DialogData/season_irontide/get_all_fuel/game_get_all_fuel.json
+Data/DialogData/season_irontide/plot_03_choose_mech/after_select_mecha_0.json
+Data/DialogData/season_irontide_hall_dr_o/dialog_day_5_0.json
+Data/DialogData/season_irontide_hall_dr_o/dialog_day_5_1.json
+Data/DialogData/season_irontide_hall_dr_o/dialog_day_5_2.json
+Data/IronTide/AIParams/{0}.json
+Data/IronTide/random_mecha_buffs.json
+Data/IronTide/season_irontide.json
+Data/IronTide/skill_desc_param.json
+Data/buff_stack_config_default.json
+DataSet.DataSetName
+DataTable.DataColumn_{0}.AllowDBNull
+DataTable.DataColumn_{0}.AutoIncrement
+DataTable.DataColumn_{0}.AutoIncrementCurrent
+DataTable.DataColumn_{0}.AutoIncrementSeed
+DataTable.DataColumn_{0}.AutoIncrementStep
+DataTable.DataColumn_{0}.Caption
+DataTable.DataColumn_{0}.ColumnMapping
+DataTable.DataColumn_{0}.ColumnName
+DataTable.DataColumn_{0}.DataType_AssemblyQualifiedName
+DataTable.DataColumn_{0}.DateTimeMode
+DataTable.DataColumn_{0}.DefaultValue
+DataTable.DataColumn_{0}.Expression
+DataTable.DataColumn_{0}.ExtendedProperties
+DataTable.DataColumn_{0}.MaxLength
+DataTable.DataColumn_{0}.Namespace
+DataTable.DataColumn_{0}.Prefix
+DataTable.DataColumn_{0}.ReadOnly
+DataTable.DataColumn_{0}.SimpleType
+DataTable.DataColumn_{0}.XmlDataType
+DataTable_{0}.DataColumn_{1}.Expression
+Debug Persistent
+DebugUIPersistentCanvas
+Decrypt
+Decrypt err 
+Decryption method not supported
+Default variable values not saved. Call SaveDefaultVariableValues before ResetVariableValues.
+DefaultCriticalDamageMultiplier
+Defence Coin Gem: 
+Defence Kill Gem: 
+Defence Pass Gem: 
+Defence Total Gem: 
+Defence Wave Gem: 
+Deferred acknowledgement of application message is not yet supported in MQTTnet server.
+DoCheckRijndaelData:
+DoMoveLocalData SaveIdValid localSaveId:
+DynamicConfig.json
+Encountered metadata that was not generated by this ISavedGameClient
+Encrypt
+Encrypted database verification failed
+Encryption failed
+Encryption key must be provided for encrypted connections.
+Encryption key must be provided when migrating to an encrypted database.
+Encryption keys must be strings or byte arrays
+EncryptionPolicy
+EndRageMode
+Err/None_save_server
+Err/remoteCloudSaveDataBroke
+Escape run save failed during cleanup: {0}
+Escape run save is missing, cannot continue the saved game.
+Escape runtime inventory save failed during cleanup: {0}
+Escape saved chest prefab missing for chestId: 
+EscapeRunSaveDataLoad
+Failed to BuyGemByTypeIndex, typeIndex: {0}
+Failed to GetGemCountStr, typeIndex: {0}
+Failed to GetGemPriceDescription, typeIndex: {0}
+Failed to create backup
+Failed to load skill rendering config: ModeSeason/PVP/Config/pvp_skills.json
+FetchAllSavedGames failed: 
+FetchCloudSaveData
+FixSaveId result 
+FixSaveId start {0} {1} {2} {3}
+FollowerSaveData不能为空！
+ForcePatchAnnouncementInfoConfig.json
+GameDataError
+Gem
+Gem - 115000
+Gem - 12000
+Gem - 25000
+Gem - 35000
+Gem - 500
+Gem - 5000
+Gem - 76000
+Gem - 800
+GemChestRoot
+GemForSell
+GemGroup
+GemShop
+Gemini
+GetConvertedRewardables, productEntry:{0} gameItem: {1} 转换成 Gem x {2}
+GetConvertedRewardables, productEntry:{0} gemDict 找不到 gameItem {1}
+GetCurrentSaveId battleData is null
+GetFollowerSaveData
+GetGameDataJson result:
+GetGameDataJson:
+GetISavedGameMetadata
+GetISavedGameMetadata Call agentLogin
+GetISavedGameMetadata agent onLoginCallback receive: 
+GetISavedGameMetadata is the some agent: {0}
+GetISavedGameMetadata receive agent callback
+GetISavedGameMetadata receive message in subject observer
+GetOrSaveTextureAsync 从客户端内取 GetTexture url: 
+GetOrSaveTextureAsync 从缓存取 GetTexture url: 
+GetOrSaveTextureAsync 缓存都找不到，下载 GetTexture fileName: 
+GetPetChargeMoveSpeedFactor
+GetSaveTimeInfo result:
+GooglePlayLoginAndCloudSaveAgent EmailBindLegency result {0} {1} {2}
+GooglePlayLoginAndCloudSaveAgent EmailBindLegency select 
+GooglePlayLoginAndCloudSaveAgent EmailBindLegency start
+GooglePlayLoginAndCloudSaveAgent Login result {0} {1} {2}
+GooglePlayLoginAndCloudSaveAgent Login select 
+GooglePlayLoginAndCloudSaveAgent Login start
+HeroBallLevelDirector: save service missing.
+HeroBallRunSaveData
+HeroBallRunSaveService: failed to restore terrain tile {0} x{1}.
+HeroBallRunSaveService: marble prefab missing for 
+HeroBallRunSaveService: terrain loadout slot missing.
+HeroBallRunSaveService: tile definition missing for 
+HideGem
+INTERNAL ERROR; someone wrote unexpected code in sys.xml
+IX_MessageModel_Conversation_Id
+I_no_gem
+Index {0} is out of range of the {1} persistent listeners.
+Invalid AESEncryptionStrength 
+Invalid EncryptedData
+ItemData.data 为空
+ItemSave
+Length of the data to decrypt is invalid.
+Length of the data to encrypt is invalid.
+LobbyRoomSnapshot{
+LocalCloudSaveTagContent/LocalCloudSaveTagInputField
+LocalDataSave
+Logs saved to: 
+MessageModel
+Method {0}.{1}() specified by XmlSchemaProviderAttribute has invalid signature: return type must be compatible with System.Xml.XmlQualifiedName.
+Microsoft.EntityFrameworkCore/Microsoft.EntityFrameworkCore.BeforeExecuteCommand@Activity2Start:-Command.Connection.DataSource;Command.Connection.Database;Command.CommandText
+Microsoft.EntityFrameworkCore/Microsoft.EntityFrameworkCore.AfterExecuteCommand@Activity2Stop:-
+MigrationSaves callback
+MiniExcel SaveAs not support xlsm
+Missing private key to decrypt value.
+Mobile Media Plugin Demo
+To test save/pick media to/from Native, please build Android, iOS app and test on device.
+
+
+Mock FetchCloudSaveData
+Mock SaveCloudSaveData
+ModeARAM/Data/buff_stack_config.json
+ModeSeason/PVP/Config/brawl_config.json
+ModeSeason/PVP/Config/game_mode_terrain.json
+ModeSeason/PVP/Config/pvp_ai_config.json
+ModeSeason/PVP/Config/pvp_buffs.json
+ModeSeason/PVP/Config/pvp_characters.json
+ModeSeason/PVP/Config/pvp_localization_temp.json
+ModeSeason/PVP/Config/pvp_numeric_talents.json
+ModeSeason/PVP/Config/pvp_skills.json
+ModeSeason/PVP/Config/pvp_talents.json
+ModeSeason/PVP/Config/pvp_weapons.json
+ModeSeason/PVP/Config/rendering_objects.json
+MonsterRiseDataSave
+MoveCloudSaveManager Init {0}
+Newtonsoft.Json
+No password available for AES encrypted stream
+No password available for encrypted stream
+No saved VFX data found
+Not SupportCloudSaveDownload
+Not SupportCloudSaveUpload
+NotEnoughGem
+OnClick_SaveScene
+OnSaveData
+OnSavedGameDataRead : 
+OnSetSupportCloudSaveDownload
+OnSetSupportCloudSaveDownloadOnce
+OnSetSupportCloudSaveUpload
+OnSetSupportCloudSaveUploadOnce
+Only one InterestManagement component allowed. {0} has been set up already.
+Only readonly items can be made persistent.
+OptionalMoveCloudSaveManager Init {0}
+Persistent Data Path: 
+PlaintextToEncrypted
+PreLoadSaveUtil
+Premium Gem Pack
+Purchase Gem:
+RGMaterial/RawImageMat.mat
+RGPrefab/UI/CloudSaveDataView.prefab
+RGSaveManager multi
+RGSaveManager not initialize.Please wait SingletonGroup create.
+RGSaveManager null
+RGScript.Battle.RuntimeLua.RuntimeLuaProjectileSnapshot does not have a constructor!
+RGScript.Data.WeaponDropInfo does not have a constructor!
+RGTexture/ui/common/icon_small_gem.png
+Rewired: UserDataStore_PlayerPrefs is disabled and will not save any data.
+RewiredSaveData
+RoomSnapshot
+Root/Middle/mask/gem
+Rpc_save_get_time_info:
+SELECT SenderId, RecipientId, ConversationId, COUNT(*) AS TotalMessageCount, SUM(NOT IsRead) AS UnreadCount FROM MessageModel GROUP BY ConversationId
+SELECT sqlcipher_export('encrypted')
+SandboxConfigSave
+SandboxMapSave
+Save
+Save Action: Unsupported parameter type: 
+Save Path: 
+Save end 
+Save lua code zip failed
+Save pic?
+Save start 
+SaveCanContinueFalse
+SaveCloudSaveData
+SaveContent:
+SaveCookies
+SaveDayRewardStatus Exception ==> dayIndex:{0} regularTotal:{1} stackTotal:{2}
+SaveDayRewardStatus dayIndex not found: {0}
+SaveGame
+SaveImage
+SaveImageOnAndroid13OrHigher Err {0}
+SavePath: {0}, Interval: {1}, TimeInterval: {2}s
+SaveRealNameCacheData success
+SaveToFile
+SaveToFileAsync
+Saved game at 
+SavedLevelInfo
+Saved_as_JPG_to:_
+Saved_as_PNG_to:_
+Saves logs to persistentDataPath
+Saves logs to the specified file
+SchemaSerializationMode.DataSet
+SeasonDataForceSave
+SeasonDataSave
+SetCurrentSaveId
+SetGameDataJson result:
+SetGameDataJson:
+SetMeleeWeaponRangeMultiplier
+SetSaveGameId
+SetSaveId
+ShowSaveTipsCount
+ShowSelectSnapshotUI failed with exception
+ShowSelectSnapshotUI result 
+SkillVoidMageMeteor
+Skin - Rogue - Gemini
+Snapshot '
+Snapshot Rendering Started Event. Identifier: 
+SoulKnight/Runtime/Config2Code/EncryptedCsv/achievements.csv
+SoulKnight/Runtime/Config2Code/EncryptedCsv/characters.csv
+SoulKnight/Runtime/Config2Code/EncryptedCsv/decorate_skins.csv
+SoulKnight/Runtime/Config2Code/EncryptedCsv/enemies.csv
+SoulKnight/Runtime/Config2Code/EncryptedCsv/globalize.csv
+SoulKnight/Runtime/Config2Code/EncryptedCsv/hall_object_skins.csv
+SoulKnight/Runtime/Config2Code/EncryptedCsv/items.csv
+SoulKnight/Runtime/Config2Code/EncryptedCsv/level_generate_config.csv
+SoulKnight/Runtime/Config2Code/EncryptedCsv/map_levels.csv
+SoulKnight/Runtime/Config2Code/EncryptedCsv/mounts.csv
+SoulKnight/Runtime/Config2Code/EncryptedCsv/npc.csv
+SoulKnight/Runtime/Config2Code/EncryptedCsv/pets.csv
+SoulKnight/Runtime/Config2Code/EncryptedCsv/random_objects.csv
+SoulKnight/Runtime/Config2Code/EncryptedCsv/skills.csv
+SoulKnight/Runtime/Config2Code/EncryptedCsv/skins.csv
+SoulKnight/Runtime/Config2Code/EncryptedCsv/sprite_atlas.csv
+SoulKnight/Runtime/Config2Code/EncryptedCsv/weapons.csv
+SoulKnight/Runtime/Config2Code/EncryptedCsv/weapons_drop.csv
+SoulKnight/Runtime/Lua/EncryptedSrc/
+SpareChannels.json
+Special Offer Gem Pack
+StatementGemFactor
+StatisticSave
+Strong encryption flag set but encryption flag is not set
+Strong encryption flag set but version not high enough
+Summer Gem Pack 1
+Summer Gem Pack 2
+Summer Gem Pack 3
+Switch.System.Data.AllowArbitraryDataSetTypeInstantiation
+System.ComponentModel.DataAnnotations.MetadataTypeAttribute
+System.Data.DataSetDefaultAllowedTypes
+System.Data.EntityKeyMember
+System.Data.Linq.Binary
+System.Data.Objects.DataClasses.EntityObject
+System.Data.Objects.DataClasses.EntityReference`1
+System.Security.Cryptography.AesCryptoServiceProvider, System.Core
+System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault
+System.Text.Json.Nodes.JsonObject
+System.Text.Json.Rethrowable
+System.Text.Json.Serialization.EnableSourceGenReflectionFallback
+System.Windows.Forms.Design.DataSourceConverter
+System.Xml.Linq.XObject
+System.Xml.XmlAttribute[]
+System.Xml.XmlNode
+System.Xml.XmlNode[]
+TMP Save Glyph Vertex Data
+TMP Save Processing States
+TMP Save Text Extent & Page Info
+TaskSystem>TaskManager>SaveNianBeastTaskData>保存任务数据: 原有{0}个，现有{1}个，任务ID: [{2}]
+TaskSystem>TaskManager>SaveReturnPlayerH5TaskData>任务字典为null，跳过保存
+TaskSystem>TaskManager>SaveReturnPlayerH5TaskData>保存任务数据: 原有{0}个，现有{1}个，任务ID: [{2}]
+TaskSystem>TaskManager>SaveReturnPlayerH5TaskData>字典为空但存档有数据，说明还未加载完成，跳过保存
+TaskSystem>TaskManager>SaveReturnPlayerTaskData>任务字典为null，跳过保存
+TaskSystem>TaskManager>SaveReturnPlayerTaskData>保存任务数据: 原有{0}个，现有{1}个，任务ID: [{2}]
+TaskSystem>TaskManager>SaveReturnPlayerTaskData>字典为空但存档有数据，说明还未加载完成，跳过保存
+The Password property must be set before AES encrypted entries can be added
+The XmlReader passed in to construct this XmlValidatingReaderImpl must be an instance of a System.Xml.XmlTextReader.
+The data to be decrypted exceeds the maximum for this modulus of {0} bytes.
+The data to be encrypted exceeds the maximum for this modulus of {0} bytes.
+This method requires an open ISavedGameMetadata.
+To test save Audio file to Native. Put your audio file in the Assets/StreamingAssets folder and rename it to SampleMP3.mp3.
+To test save GIF file to Native. Put your GIF file in the Assets/StreamingAssets folder and rename it to SampleGIF.gif.
+To test save MP4 file to Native. Put your MP4 file in the Assets/StreamingAssets folder and rename it to SampleMP4.mp4.
+Try Load AboGameData:
+Try Load CloudSaveGameData:
+TurnCanChangeMode
+TurnChangeModeBack
+TvGemCountTodayChange
+TvGemShop
+Type '{0}' does not have a static method '{1}' that takes a parameter of type 'System.Xml.Schema.XmlSchemaSet' as specified by the XmlSchemaProviderAttribute attribute.
+UIElements: Too many children recursively added that rely on persistent view data: 
+UIGameEntryListCellData.GetCurrentSeasonSavePlace: invalid season 
+UIPrefabSaveUtil
+UIR.VectorImageManager.Register
+UIR.VectorImageManager.Unregister
+UPDATE MessageModel SET IsRead = 1 WHERE ConversationId = ? AND IsRead = 0
+UPDATE MessageModel SET IsRead = 1 WHERE ConversationId = ? AND IsRead = 0 AND Id <= ?
+UPDATE MessageModel SET IsRead = 1 WHERE Id = ?
+Unable to decrypt this entry
+UnityCallSaveFileChooseFloder
+UnityCallSetSaveDataAction
+UnityEngine.ResourceManagement.AsyncOperations.AsyncOperationHandle
+UploadSave Begin
+UpsertOrderInCache.SaveObject: 
+VacationAndWorkdayConfig.data
+Version required to extract this entry is too low for encryption ({0})
+VisualElement.elementPanel is null! Cannot load persistent data.
+Xml.XmlElement
+Xml.XmlNode[]
+Xml.XmlQualifiedName
+XmlReaderSettings.XmlNameTable must be the same name table as in XmlParserContext.NameTable or XmlParserContext.NamespaceManager.NameTable, or it must be null.
+YearReviewAutoSaveManager
+YearReviewDataTemp.json
+YearReviewSnapshot_
+YearReviewSnapshot_*.json
+YearReviewSnapshot_*_
+YearReviewSummaryTemp.json
+YearReview_LastSnapshotDate
+[AhLiangEmitter]
+[AhLiangEmitter] bullet config not found: 
+[AhLiangEmitter] unsupported weapon: 
+[AnimePayInfo] save anime channel:order=> 
+[AntiAddictionPolicy_ChinaMainLand] getPurchasedAmountResult.Data.PurchasedAmount:{0}, paymentLimitChina2024.MonthlyLimit:{1}
+[AppleLoginAndCloudSaveAgent]Login ok : {0}, res : {1}, err : {2}, originErr : {3}, errRes : {4}, exception : {5}
+[AppleLoginAndCloudSaveAgent]originErr try parse int failed : 
+[AssetBundleLoader] Local bundle load settings saved and will take effect after restart
+[BaiduMigration] StartUpload -> NewCloudSaveAgent.SaveGame()
+[BaiduMigration] save_uploaded 标记写入失败，已使用内存标记降级
+[BarragePiercingEmitter] bullet config not found: 
+[BarragePiercingEmitter] unsupported weapon: 
+[BattlePassData] TryUnlockAdvancedBattlePass failed: BattlePassSaveData.data is null
+[BattlePassSaveData] GetData invalid bpId:{0}
+[C32] Failed to load arcane skill3 battle save: 
+[C39] Failed to load skill2 battle save: 
+[ChannelMigration] StartUpload -> NewCloudSaveAgent.SaveGame()
+[ChannelMigration] save_uploaded 标记写入失败，已使用内存标记降级
+[CloudSaveFix][FinishLevelBackup] failed, cleanup skipped, 
+[CloudSaveFix][FinishLevelBackup] path:
+[CloudSaveFix][FinishLevelCleanup] before:{0}, 
+[CloudSaveFix][FinishLevelCleanup] check before cloud save serialization
+[CloudSaveFix][LoopTravelLevel] levelIndex:{0}, 
+[CloudSave] AccountSwitch[
+[CloudSave] AccountSwitch[{0}] start oldUid={1}, userId={2}, playerId={3}
+[ConsumeMat] saveDataGameId not same
+[ConsumeMat] saveDataGameId same
+[Content_Types].xml
+[Debug Canvas - Persistent]
+[HeroBallRunData] Snapshot
+[ImageLoader] Save to disk cache: 
+[ImageLoader] Save to memory cache: 
+[ItemABing]GetLocalSavedPackages : 
+[ItemABing]SaveMallPackagesToLocal : {0}
+[KR_PINGPONG]GlobalAggregationAgent.OnOrderClaimed save pay type: 
+[MT]SaveAntiAddictionCacheData success
+[MallData] SavePurchaseTime {0}
+[MallReloadData] AddBuyGemCoinCount not match count: {0} with key: {1}
+[Mecha2GameModeProcess] continue mecha id mismatch, use save data. current=
+[MessageManager]Send Relic Entrance Message Type {0}
+[NewCloudSaveAgent]loginResult is null
+[RestoreRole] RestoreRoleByKey failed, RGSaveManager is null, key:{0}, heroId:{1}
+[SelectRewardClaimRecordUtility] ItemData.data 为空！
+[SelectRewardClaimRecordUtility] StatisticData.data 为空！
+[Snapshot] RestoreWorld skipped: snapshot is null.
+[Snapshot] restore skipped, no snapshot for frame {0}
+[UINewMechaCombatUpgrade] cannot save attribute level: {0}
+[UINewTVChannelCardManager] 未找到index == 0的ItemSellPlaceGem
+[UIPrefabSaveUtil] prefab image saved: 
+[UIPrefabSaveUtil] prefab is null.
+[UIPrefabSaveUtil] prefab root must have RectTransform: 
+[YearReview] Async force saved main container to: 
+[YearReview] Async force saved summary container to: 
+[YearReview] Async saved snapshot to file: 
+[YearReview] Auto-save manager initialized, last snapshot date: 
+[YearReview] Cannot create snapshot - Container is null
+[YearReview] Created daily snapshot for date: 
+[YearReview] Error processing historical snapshot 
+[YearReview] Failed to async save snapshot: 
+[YearReview] Failed to async save to file 
+[YearReview] Failed to load snapshot: 
+[YearReview] Failed to save snapshot: 
+[YearReview] Failed to save to file 
+[YearReview] Failed to upload historical snapshot: 
+[YearReview] Force saved main container to: 
+[YearReview] Force saved summary container to: 
+[YearReview] Historical snapshot uploaded and deleted: 
+[YearReview] Loaded snapshot from file: 
+[YearReview] Saved snapshot to file: 
+[{0}] save prefab image failed: {1}
+[{0}][{1}][{2}].xml
+] SaveImage abName: 
+] SaveImage failed, invitation code is empty.
+] SaveImage prefab not found: 
+] SaveImage result: 
+_.data
+_fetchHarmonySaveIdSuc
+_gem
+account/upload_save_data
+active.json
+add_bind_gem
+aes_encrypt
+android.content.pm.PackageManager
+applyAttackDamageMultiplier
+autoIncrementSaveId
+backup.data
+battle.data
+battle_save_id
+battles.data
+bind_get_gem
+body/content/gem/text
+body/right_root/btn_save
+btn_gem/Text
+btn_save
+btn_save_root
+button_bar/btn_continue/btn_next_save
+buy_gem
+can not find cloud save button, so can not guide.
+captureSnapshot
+cccccccc SavePurchaseTime bundleid: {0}, add count: {1}, after count: {2}
+change save id, before: 
+claude_desktop_config.json
+click to save drawing!
+click_upload_save
+cline_mcp_settings.json
+cloudSaveId
+cloudsave
+cloudsave/I_mul_tip6
+cloudsave/More
+cloudsave/account&cloudsave
+cloudsave/account_info
+cloudsave/account_invalid
+cloudsave/account_login
+cloudsave/account_not_registe_try_after_registe
+cloudsave/activation_code_title
+cloudsave/bind_phone
+cloudsave/bind_phone_fail
+cloudsave/bind_phone_success
+cloudsave/cancel
+cloudsave/cell_number
+cloudsave/change_account_fail
+cloudsave/change_account_success
+cloudsave/change_email
+cloudsave/change_password_fail
+cloudsave/change_password_fail_smsCode_invalid
+cloudsave/change_password_success
+cloudsave/change_phone_number
+cloudsave/change_phonenumber_different
+cloudsave/channel_name_channel_uid
+cloudsave/channelname_channeluid_explain
+cloudsave/char_x_count
+cloudsave/chillyroom_account_info
+cloudsave/chillyroom_channel_account_info
+cloudsave/click_to_upload_save
+cloudsave/click_to_use_cs
+cloudsave/click_to_use_cs_slim
+cloudsave/cloudsave_broke
+cloudsave/config_not_support_loginType
+cloudsave/config_not_support_registeType
+cloudsave/confirm
+cloudsave/confirm_dnload_will_cover_ex
+cloudsave/confirm_dnload_will_lost_ex
+cloudsave/confirm_email_registe
+cloudsave/confirm_logout
+cloudsave/confirm_phone_number
+cloudsave/confirm_save
+cloudsave/confirm_save_easy
+cloudsave/currect_email
+cloudsave/deviceid
+cloudsave/different_password
+cloudsave/email
+cloudsave/email_already_in_use
+cloudsave/email_format_invalid
+cloudsave/email_registe_tips1
+cloudsave/email_registed
+cloudsave/email_sent
+cloudsave/email_sent_fail_unreachable
+cloudsave/enter_password
+cloudsave/enter_verification_code
+cloudsave/enter_your_cell_phone
+cloudsave/escape_run_save_confirm
+cloudsave/fetch_fail_extra
+cloudsave/fetch_success
+cloudsave/forget_password
+cloudsave/goto_send_smdcode
+cloudsave/guide_bind
+cloudsave/input_phone_sms_password_step1
+cloudsave/input_phone_sms_password_step2
+cloudsave/input_phone_sms_password_step3
+cloudsave/input_six_number_smscode
+cloudsave/invalid_account_type
+cloudsave/local_cloudsave_fall_behind
+cloudsave/local_more_payment_point_upload
+cloudsave/login
+cloudsave/login_error
+cloudsave/login_success
+cloudsave/logout
+cloudsave/logout_success
+cloudsave/more_cloudsave_info
+cloudsave/msg
+cloudsave/net_cloudsave_fall_behind_local_cloudsave
+cloudsave/net_exp
+cloudsave/new_email
+cloudsave/new_password
+cloudsave/no_cache_data
+cloudsave/not_fount_account
+cloudsave/not_login
+cloudsave/note
+cloudsave/operate_too_ofen
+cloudsave/pass_long
+cloudsave/pass_short
+cloudsave/password
+cloudsave/password_cannot_contain_blank
+cloudsave/password_err
+cloudsave/password_required
+cloudsave/pet_x_count
+cloudsave/phone_account_change_password_fail
+cloudsave/phone_already_in_use
+cloudsave/phone_bind_account
+cloudsave/phone_change_account
+cloudsave/phone_format_invalid
+cloudsave/plantpot_x_count
+cloudsave/player_id
+cloudsave/re_enter_new_password
+cloudsave/re_enter_password
+cloudsave/reg_fail
+cloudsave/reg_success
+cloudsave/reget_sms
+cloudsave/registe
+cloudsave/reset_password
+cloudsave/reset_password_after_verify
+cloudsave/save_id
+cloudsave/send_sms
+cloudsave/send_sms_succes
+cloudsave/server_error
+cloudsave/server_unknow_error
+cloudsave/skill_x_count
+cloudsave/skin_x_count
+cloudsave/sms_code_required
+cloudsave/thirdparty_channel_uid
+cloudsave/to_identify_your_copy_of_localsave
+cloudsave/to_identify_your_device
+cloudsave/to_verify_your_account_cloudsave
+cloudsave/to_verify_your_cell_number_cloudsave
+cloudsave/uid_account_cannot_change_account
+cloudsave/upload_fail
+cloudsave/upload_fail_different_account
+cloudsave/user_cancel
+cloudsave/verify_now
+cloudsave/verify_sms_fail_retry
+cloudsave/verify_sms_success
+cloudsave/version_not_match
+cloudsave/wait_time_invalid
+cloudsave_fetch_fail
+cloudsave_fetching
+cloudsave_save_fail
+cloudsave_save_success
+cloudsave_saving
+cloudsave_second_confirm_save
+cloudsave_undetected
+collect_gem
+com.chillyroom.datachannel.AndroidNetworkMonitor
+com.chillyroom.dungeonshooter.purchase_gem_1
+com.chillyroom.dungeonshooter.purchase_gem_2
+com.chillyroom.dungeonshooter.purchase_gem_30000
+com.chillyroom.dungeonshooter.purchase_gem_4
+com.chillyroom.dungeonshooter.purchase_gem_45
+com.chillyroom.dungeonshooter.purchase_gem_5
+com.chillyroom.dungeonshooter.purchase_gem_500
+com.chillyroom.dungeonshooter.purchase_gem_68
+com.chillyroomsdk.util.SaveUtil
+com.google.android.gms.games.snapshot.SnapshotMetadataChange$Builder
+common_gem_count
+config.TbCloudSaveConfig
+config_tbcloudsaveconfig
+consume_gem
+consume_gem_num
+controllerMapSaveDataType
+credentials.json
+cumulative_consume_gems
+cumulative_gems
+cur_gem_count
+customization_kill_effect_obtain_gem
+damageMelee
+damageMinion
+data/hot_update_manifest.json
+decrypt_length
+decryption error
+desc/group/gem
+desc/group/gem/Text
+detail/gem/text
+donate/cloud_save_tips
+download_save
+download_save_count
+eggGemTime
+encrypted_lua.zip
+esc_item_talent_gem
+esc_ui_continue_save_confirm
+file saved to path: 
+fix gp or gp test save id {0} {1} {2}
+fix_saveId
+frame_button_large_gem
+game.data
+game_data_panel/gem/text
+gem
+gem/Text
+gem/anti
+gem/text
+gemChest
+gemFx
+gemHalfFx
+gemReward/text
+gemRoot
+gemText
+gem_count
+gem_icon
+gem_image
+gem_num
+gemini
+gemini-64.png
+gems
+getConflictingSnapshot
+getPackageManager
+getResolutionSnapshotContents
+getSnapshot
+getSnapshotContents
+getSnapshotId
+getSnapshotsClient
+get_gem
+get_local_save_id_default
+group/gem
+gunmaster_task_percent_require_snapshot
+has_save_date
+hero_upgrade_tutorial_gem
+hot_update_manifest.json
+http://192.168.1.92/DialogText/DialogConfig.json
+http://39.108.87.225:7030/get_inc_id?key=ConfigEmailUid
+http://cdn2.chillyroom.com/game/SoulKnight/Test/DialogConfig.json
+http://schemas.datacontract.org/2004/07/
+http://schemas.datacontract.org/2004/07/System.Xml
+http://schemas.xmlsoap.org/soap/encoding/
+http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name
+http://schemas.xmlsoap.org/wsdl/
+http://www.chillyroom.com/zh/soul-knight/cloud-save
+https://geminicli.com/docs/get-started/installation/
+img_bg/btn_bg/btn_gem
+img_bg/btn_bg/btn_gem/Text
+info_bar/gem/Text
+invalid EncryptedData
+invalid EncryptedPrivateKeyInfo
+invalid arguments to BattleData.GetFollowerSaveData!
+invalid arguments to RGScript.Data.NewTalentData constructor!
+invalid arguments to RGScript.Data.WeaponDropInfo.GetWeaponWithDropLevel!
+invalid arguments to SoulKnight.Runtime.Skill.EnemyDamageModifyEvent constructor!
+invalid encryptionAlgorithm
+ios.com.chillyroom.dungeonshooter.purchase_gem_1
+ios.com.chillyroom.dungeonshooter.purchase_gem_2
+ios.com.chillyroom.dungeonshooter.purchase_gem_45
+ios.com.chillyroom.dungeonshooter.purchase_gem_5
+ios.com.chillyroom.dungeonshooter.purchase_gem_500
+ios.com.chillyroom.dungeonshooter.purchase_gem_68
+irontide/cloud_save_tips
+isCopyedPlayerSaveData
+item_data.data
+item_data_backups.bytes
+jwks-cache.json
+kkkkkkk FetchGameDataAsync Request failed (ApiException): {0}（{1}）, msg: {2}
+kkkkkkk FetchGameDataAsync Request failed: 
+kkkkkkk FetchGameDataAsync Request failed: timeout: 
+last_gems
+local_save_id
+logs.save
+mall/item_pkg_blind_saveReminder
+mall/not_enough_gem
+mall/ui_ask_package_gem_convert
+manifest.json
+mask_down/SaveBtn
+material_gem
+material_gem {0}
+material_gem,1000
+material_gem,1500
+material_gem,2000
+material_gem,3000
+maxDisplayedSavedGames must be greater than 0
+mcp.json
+mcp_config.json
+mecha2InGameSaveData
+messageModel: 
+missing EncryptedContentInfo
+missing EncryptedContentInfo.ContentEncryptionAlgorithmIdentifier
+missing EncryptedContentInfo.ContentType
+missing EncryptedContentInfo.EncryptedContent
+monsrise_node_gem
+more than one RGSaveManager
+multi/season_save_end
+new_mecha_combat/name/attribute/AttackDamageMultiplier
+new_player_tutorial_gem_reward
+new_save
+not SupportCloudSaveUpload
+not support type, fallback to use MobileMedia.SaveImage
+null Snapshot passed to AudioMixer.TransitionToSnapshot of AudioMixer '
+obtain_gem
+onCheckSaveMac
+onSaveGameFail
+onSaveGameFail SendDataToLegency
+onSaveGameSuccess
+oneShotDamageModifier
+opencode.json
+option1/gem_icon/Text
+otherwise you may need to open and re-save the {0} to reset scene id's.
+pet_nain save to statisticData
+plant_gem_flower
+plant_gem_flower_seed
+plant_gem_tree_seed
+project.json
+public key encrypted
+purchase_gem_1
+purchase_gem_2
+purchase_gem_3
+purchase_gem_30000
+purchase_gem_4
+purchase_gem_45
+purchase_gem_5
+purchase_gem_500
+purchase_gem_68
+raid_mode_game_save_reset
+record_saveId_event_name
+record_save_santa_claus_times
+rij_decrypt
+rijndael
+room_follower_save_data
+runtime_lua_package.json
+save
+saveData
+saveOnExit
+savePoint
+savePoint is not valid, and should be the result of a call to SaveTransactionPoint.
+save_crypt_data_fail
+save_id
+save_manager
+save_other_player
+save_santa_claus_times_2024
+saved_game_meta open? 
+savedata/newgame_cover
+savedataGameId
+savepoint 
+sb/quit_dialog_unsave
+sb/save_done
+send_review_gem
+settings.json
+showSelectSnapshotUi
+snapshot
+snapshot refresh after order recovery failed
+soulknight.blobsave.test.chilly.tech
+startSnapshotForRendering
+statistic.data
+stopSnapshotForRendering
+system.security.cryptography.rijndael
+system.security.cryptography.rijndaelmanaged
+task.data
+temp_data_save_suc
+text/Image/gem_text
+text_0/Image/gem_text
+text_gems
+text_gems/GemLayout/Text
+text_gems/Text
+tips/click_to_save_drawing
+tips/gem_unlock
+tips/request_save_drawing_to_photo
+tips/save_drawing_succeed
+tips/unlock_chip_slot_by_gem
+ui/move_cloud_save_tip_0
+ui/warn_logout_local_save
+ui_btn_gem
+ui_game_entry_save_out_restart
+ui_game_entry_season_save_restart
+unity_sdk_configs.json
+upload_protect_save_progress
+upload_save
+upload_save_count
+use {0} gem unlock
+useCloudSave
+uuuuuuuu DnloadSave:
+uuuuuuuu LoginApi.CheckSaveMac 
+uuuuuuuuu CloudSaveDataView.OnSwitchUser res.isOk:
+uuuuuuuuuu DnloadSave parse bytes:
+uuuuuuuuuu LoginApi.DnloadSave Begin
+uuuuuuuuuu UploadSave:
+v1_save_id
+v1_v2_save_id_map
+v2_save_id
+var_gems
+weaponIsEvolvedInSave
+weaponSkinInSave
+xl/_rels/workbook.xml.rels
+xl/drawings/_rels/drawing{0}.xml.rels
+xl/drawings/drawing{0}.xml
+xl/sharedStrings.xml
+xl/styles.xml
+xl/workbook.xml
+xl/worksheets/_rels/sheet{0}.xml.rels
+xl/worksheets/sheet{0}.xml
+year_summary_image_save
+{0} all skins has unlocked! convert to gems:{1}
+{0} gems
+{0} skill has unlocked! convert to gems:{1}
+{0} skin has unlocked! convert to gems:{1}
+{0}_{1}_{2}.json
+{class}.{method} Connected. Waiting for server-pushed initial client data snapshot.
+{class}.{method} Discarding stale initial snapshot: live notifications already received.
+无法在非编辑器平台中向persistentDataPath以外的路径写入数据
+未找到字段 _fetchHarmonySaveIdSuc
+调用Save

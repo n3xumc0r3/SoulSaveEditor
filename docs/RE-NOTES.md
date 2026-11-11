@@ -122,6 +122,36 @@ this.desIv  = decrept("1\"8ku|TJ",  "PASSWORD");  // -> "abo123\0\0"
 Hot-update: `HotUpdateManager`, `PatchListApi`, `PatchService`,
 `HotUpdateManifest`, `VersionCheck*`.
 
+## Локальные сейвы 8.7.0 (полностью — docs/LOCAL-SAVE-870.md)
+
+```
+секции:  game.data→AboGameData(41), item_data.data→ItemData(114),
+         statistic.data→StatisticData(168), setting.data→SettingData(47),
+         season_data.data→SeasonData(78), task.data, misc_data.data,
+         pvp_data.data, monsrise_data.data, mall_reload_data.data,
+         bp_data.data, escape_season_data.data, escape_run_save.data,
+         weapon_evolution_data.data, sandbox_config/maps.data, backup.data
+корень:  CloudSaveGameData(18 полей: serialzedVersion, cloudSaveId, …)
+менеджер: RGScript.Manager.SDK.SaveUtil (48 методов, deferred-save
+         SaveInterval/SaveMaxCount, SaveDataWithRijndael/LoadRijndaelData,
+         SaveCryptData/LoadCryptData легаси, recordSave.data rolling)
+файлы:   Abo.FileUtil (internalPersistentPath, BrokenFileSuffix → upload)
+JSON:    Abo.JsonUtil (27 методов; *WithUnicode = UTF-16LE + \uXXXX = облако)
+сериализатор: легаси JsonUtility ⇄ Newtonsoft.Json
+         (SaveUtil._openNewtonJsonTestOverride, SupportUseNewtonJsonChannel,
+          флаги В САМОМ сейве: SettingData.UseRijData / UseNewtonJsonData)
+поле не записано == дефолт C#-класса (0/false/null); лишние игнорируются
+```
+
+Layout typeDefinitions v31 (проверено тайлингом, 0 перекрытий на 37 521 типе):
+```
+16 int: name, ns, byval, decl, parent, elem, genContainer, flags,
+        fieldStart, methodStart, evStart, propStart, nestedStart, ifStart, vtStart, ifOffStart
+8 uint16: [0]method_count [1]property_count [2]field_count [3]event_count
+          [4]nested [5]vtable [6]interfaces [7]ifOffsets   ← НЕ стандартный порядок!
++ bitfield + token = 88 Б
+```
+
 ## Хосты
 
 ```
