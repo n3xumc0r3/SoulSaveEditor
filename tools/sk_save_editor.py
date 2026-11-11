@@ -114,7 +114,7 @@ SECTION_CLASS = {
     "backup": "BackupGameData",
 }
 
-SAVE_SUFFIXES = (".data", ".aes", ".rijndael")
+SAVE_SUFFIXES = (".data", ".data.new", ".aes", ".rijndael")
 
 # Класс секции-обёртки и поле-обёртка (backup.data = {"gameData": {...}})
 WRAPPER_CLASS_FIELD = {"BackupGameData": "gameData"}
@@ -376,20 +376,23 @@ def json_to_bytes(obj, codec: str) -> bytes:
 # ---------------------------------------------------------------------------
 # 6. Детект формата файла: имя -> подсказка, контент -> решение
 # ---------------------------------------------------------------------------
-NAME_ACC_RE = re.compile(r"^(?P<name>.+?)_\((?P<acc>\d+|LOCAL)\)(?:_(?P<slot>\d+))?$", re.I)
+NAME_ACC_RE = re.compile(r"^(?P<name>.+?)_\(?(?P<acc>\d{4,}|LOCAL)\)?_(?P<slot>\d*)$", re.I)
 
 
 def parse_save_name(filename: str):
-    """'statistic_(235288966)_2.data' -> dict(name, account, slot) | None"""
+    """'statistic_(235288966)_2.data' / 'monsrise_data_235288966_.data.new'
+    -> dict(name, account, slot). Реальные имена на устройстве 8.7.0 —
+    без скобок и с пустым слотом: 'monsrise_data_<acc>_.data' (факт §1.1)."""
     base = os.path.basename(filename)
-    for suf in (".rijndael", ".aes", ".data"):
+    # атомарная запись: игра пишет '<имя>.data.new', затем rename — снимаем .new
+    for suf in (".rijndael", ".aes", ".data.new", ".data"):
         if base.lower().endswith(suf):
             base = base[: -len(suf)]
             break
     m = NAME_ACC_RE.match(base)
     if not m:
         return {"name": base, "account": None, "slot": None}
-    return {"name": m.group("name"), "account": m.group("acc"), "slot": m.group("slot")}
+    return {"name": m.group("name"), "account": m.group("acc"), "slot": m.group("slot") or None}
 
 
 def section_of(filename: str):

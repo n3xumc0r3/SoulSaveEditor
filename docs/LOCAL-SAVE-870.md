@@ -39,7 +39,7 @@
 | Файл | Размер | Результат |
 |---|---|---|
 | `statistic.data` | 42 144 Б | **Расшифрован** Base64(DES/CBC, key `crst1`, IV `Ahbool\0\0`, PKCS5) → 30 727 Б JSON, **161 ключ верхнего уровня**. Все 161 — поля класса `StatisticData` (0 посторонних). Не-JSON поля класса: 2 события (`Handbook*RecordedEvent`), 2 static-константы (`PassHistoryMaxCount`, `MultiGameHistoryMaxCount`), `StatisticLoad`, `cy`, `_data` — ровно то, что и не должно сериализоваться |
-| `monsrise_data_235288966_.data.new` | 400 Б | **НЕ расшифровывается** ни одной легаси-схемой (DES crst1/iambo/Ahbool+abo123, XOR 15Б, poly-XOR PASSWORD, фиксированный Rijndael) — энтропия 7.994. Класс `MonsterRiseData` в v29-метадате устройства имеет `get_RijPath` ⇒ файл из **Rijndael-группы миграции**; ключ per-install в playerprefs (`DataRijndael128Key`/`DataRijndaelIV`) — нужен root-pull (см. §8) |
+| `monsrise_data_235288966_.data.new` | 400 Б | **НЕ расшифровывается** ни одной легаси-схемой (DES crst1/iambo/Ahbool+abo123, XOR 15Б, poly-XOR PASSWORD, фиксированный Rijndael) — энтропия 7.994. Класс `MonsterRiseData` в v29-метадате устройства имеет `get_RijPath` ⇒ файл из **Rijndael-группы миграции**; ключ per-install в playerprefs (`DataRijndael128Key`/`DataRijndaelIV`) — нужен root-pull (см. §6.1) |
 | `bugly_last_us_up_tm` | 13 Б | timestamp телеметрии Bugly, не сейв |
 
 Факты, извлечённые из v29-метадаты **самого устройства** (54 307 520 Б, XOR-0x66-зоны,
@@ -337,6 +337,36 @@ hand_cut_index, manual_change_hand_cut_index, buy_good_times, ...
    * `serialzedVersion: 1` — версия схемы для миграций, не трогать;
    * `ChillyUid` (SettingData) и `cloudSaveId` — маркеры принадлежности
      профиля; при переносе сейва на другой аккаунт менять оба (см. REVERSING.md §3).
+
+## 6.1. Рулбук: root-pull недостающих файлов (LDPlayer, Windows)
+
+Для полного доступа ко всем секциям (game.data, .aes/Rijndael-ключи, .data.new)
+нужно внутреннее хранилище — оно читается только под root. LDPlayer рутован:
+
+```bat
+:: 1) playerprefs.xml — ключи Rijndael/AES + cloudSaveId + флаги OpenRijTest_
+D:\LDPlayer\LDPlayer14\adb.exe exec-out "su -c 'cat /data/data/com.ChillyRoom.DungeonShooter/shared_prefs/com.ChillyRoom.DungeonShooter.v2.playerprefs.xml'" > prefs.xml
+
+:: 2) внутренние файлы сейвов (game.data, .aes, .data.new, battles.data и т.д.)
+D:\LDPlayer\LDPlayer14\adb.exe exec-out "su -c 'tar -C /data/data/com.ChillyRoom.DungeonShooter/files -cf - .'" > internal_files.tar
+mkdir files_internal && tar -xf internal_files.tar -C files_internal
+
+:: 3) все дальнейшее делает редактор (см. EDITOR.md):
+python tools\sk_save_editor.py pull
+python tools\sk_save_editor.py currencies
+python tools\sk_save_editor.py preset gems 50000 --yes
+python tools\sk_save_editor.py push
+```
+
+Что это открывает:
+
+1. **Rijndael-ключи** `DataRijndael128Key`/`DataRijndaelIV` из prefs.xml → расшифровка
+   `monsrise_data_*.data.new` и всех `.aes`/`.rij`-файлов (редактор делает мульти-догадку
+   автоматически при `--prefs prefs.xml`).
+2. **game.data** (AboGameData, XOR) → правка валют (`gems`/`fishChip`), героев, комнаты.
+3. Если `su` недоступен — пробовать `adb root` (пересборка adbd), либо взять файлы из
+   бэкапа наоборот: сначала `python tools\sk_save_editor.py pull` — он сам перебирает
+   su/прямой доступ.
 
 ## 7. Инструменты и статус
 
