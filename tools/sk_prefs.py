@@ -1,0 +1,448 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+sk_prefs.py — парсер/редактор prefs.xml (Unity/Android SharedPreferences) игры
+Soul Knight 8.7.0. Закрывает вторую половину локального сэйва: файлы `.data`
+правит sk_save_editor.py, а playerprefs — этот инструмент.
+
+Файл: /data/data/com.ChillyRoom.DungeonShooter/shared_prefs/
+      com.ChillyRoom.DungeonShooter.v2.playerprefs.xml
+Кодировка: UTF-16LE c BOM (FF FE), Android-формат `<map>` с элементами
+<int name="K" value="V"/> / <string name="K">V</string> / <long|float|boolean>.
+
+Ключевой факт (реальное устройство, 12.11.2026): игра хранит данные В ДВУХ
+неймспейсах — `<accountId>_*` и `LOCAL*` (зеркало ~1:1). Регистр bool
+различается: `<UID>_*` → "true"/"false", `LOCAL*` → "True"/"False".
+Имена ключей и строковые значения могут быть URL-экранированы ("%23" → "#").
+
+Правка — хирургическая, на уровне текста: файл не пересобирается, меняются
+только нужные элементы, перед записью — бэкап, после — повторный парс.
+
+Примеры:
+  python3 sk_prefs.py info prefs.xml
+  python3 sk_prefs.py schema prefs.xml
+  python3 sk_prefs.py mirror prefs.xml
+  python3 sk_prefs.py gems prefs.xml 50000 --yes
+  python3 sk_prefs.py unlock-heroes prefs.xml --yes
+  python3 sk_prefs.py set prefs.xml 235288966_room_level 9 --mirror --yes
+  python3 sk_prefs.py get prefs.xml LOCALlast_gems
+"""
+import argparse, os, re, sys, time, shutil, collections, urllib.parse
+import xml.etree.ElementTree as ET
+
+BOM = b"\xff\xfe"
+INT_RE = re.compile(r'<int name="([^"]+)" value="([^"]*)"\s*/>')
+STR_RE = re.compile(r'<string name="([^"]+)">(.*?)</string>', re.S)
+LONG_RE = re.compile(r'<long name="([^"]+)" value="([^"]*)"\s*/>')
+BOOL_RE = re.compile(r'<boolean name="([^"]+)" value="([^"]*)"\s*/>')
+FLOAT_RE = re.compile(r'<float name="([^"]+)" value="([^"]*)"\s*/>')
+
+ELEM_RE = collections.OrderedDict([
+    ("int", INT_RE), ("string", STR_RE), ("long", LONG_RE),
+    ("boolean", BOOL_RE), ("float", FLOAT_RE),
+])
+
+
+def read_text(path):
+    raw = open(path, "rb").read()
+    if raw[:2] == BOM:
+        return raw.decode("utf-16"), True
+    # sometimes pulled without BOM: try utf-16le, fallback utf-8
+    try:
+        return raw.decode("utf-16-le"), False
+    except UnicodeDecodeError:
+        return raw.decode("utf-8"), False
+
+
+def write_text(path, text, bom):
+    data = text.encode("utf-16-le") if bom else text.encode("utf-8")
+    if bom:
+        data = BOM + data
+    tmp = path + ".tmp"
+    with open(tmp, "wb") as f:
+        f.write(data)
+    os.replace(tmp, path)
+
+
+def parse_entries(text):
+    """-> dict name -> (kind, raw_value, span, elem_regex_group_text)"""
+    out = {}
+    for kind, rx in ELEM_RE.items():
+        for m in rx.finditer(text):
+            name = m.group(1)
+            val = m.group(2) if kind != "string" else m.group(2)
+            out[name] = {"kind": kind, "value": val, "span": m.span(),
+                         "match": m}
+    return out
+
+
+def looks_url_encoded(s):
+    return bool(s) and ("%" in s) and re.search(r"%[0-9A-Fa-f]{2}", s)
+
+
+def try_decode(s):
+    if s is None:
+        return None
+    if looks_url_encoded(s):
+        try:
+            return urllib.parse.unquote(s)
+        except Exception:
+            return s
+    return s
+
+
+def guess_kind(value):
+    if re.fullmatch(r"-?\d+", value or ""):
+        return "int"
+    return "string"
+
+
+def backup(path):
+    b = f"{path}.bak_{time.strftime('%Y%m%d_%H%M%S')}"
+    shutil.copy2(path, b)
+    return b
+
+
+def verify(path):
+    text, bom = read_text(path)
+    root = ET.fromstring(text)
+    return len(list(root)), bom
+
+
+def iter_all(path):
+    text, bom = read_text(path)
+    entries = parse_entries(text)
+    return text, bom, entries
+
+
+def detect_uid(entries):
+    c = collections.Counter()
+    for name in entries:
+        m = re.match(r"^(\d+)_", name)
+        if m:
+            c[m.group(1)] += 1
+    return c.most_common(1)[0][0] if c else None
+
+
+# ---------------------------------------------------------------- commands --
+
+def cmd_info(a):
+    text, bom, entries = iter_all(a.prefs)
+    kinds = collections.Counter(e["kind"] for e in entries.values())
+    uid = detect_uid(entries)
+    print(f"file        : {a.prefs}")
+    print(f"encoding    : UTF-16{'LE+BOM' if bom else '-LE (без BOM)'}")
+    print(f"entries     : {len(entries)}  ({', '.join(f'{k}={v}' for k, v in kinds.items())})")
+    print(f"accountId   : {uid}")
+    for k in ("cloudSaveId", f"{uid}_cloudSaveId", "last_chilly_uid",
+              "last_account_id", "LOCALlast_pid"):
+        if k in entries:
+            print(f"{k:24s}= {entries[k]['value']}")
+    rij = [k for k in ("DataRijndael128Key", "DataRijndaelIV", "DataAES256Key")
+           if k in entries]
+    print(f"Rijndael ключи в prefs: {rij if rij else 'НЕТ (не хранятся в playerprefs)'}")
+    for k in sorted(entries):
+        if re.match(r"(OpenRijTest|OpenNewtonJsonTest)_", k):
+            print(f"{k} = {entries[k]['value']}")
+    flags = sorted(k for k in entries
+                   if re.match(r"(\d+_)?has_\w+_data$", k) and
+                   (k.startswith("LOCAL") or k.startswith(f"{uid}_")))
+    print(f"has_*_data флагов: {len(flags)}; все = "
+          f"{sorted(set(entries[k]['value'] for k in flags))}")
+    if uid:
+        led = [f"{uid}_gems", f"{uid}_last_gems", f"{uid}_var_gems",
+               f"{uid}_cumulative_gems", f"{uid}_cumulative_consume_gems",
+               f"{uid}_reborn_card", f"{uid}_magic_stone_index"]
+        for k in led:
+            if k in entries:
+                print(f"{k:38s}= {entries[k]['value']}")
+
+
+def cmd_schema(a):
+    text, bom, entries = iter_all(a.prefs)
+    uid = detect_uid(entries)
+
+    def pat(name):
+        p = name.replace(uid, "<UID>") if uid else name
+        return re.sub(r"\d+", "N", p)
+
+    groups = collections.defaultdict(list)
+    for name, e in entries.items():
+        groups[pat(name)].append(name)
+    print(f"{'count':>6}  {'kind':7s} pattern")
+    for p, names in sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+        kinds = collections.Counter(entries[n]["kind"] for n in names)
+        ks = ",".join(f"{k}x{v}" for k, v in kinds.items())
+        print(f"{len(names):>6}  {ks:7s} {p}")
+    print(f"\nитого: {len(entries)} ключей, {len(groups)} паттернов")
+
+
+def cmd_dump(a):
+    text, bom, entries = iter_all(a.prefs)
+    out = {}
+    for name, e in sorted(entries.items()):
+        v = e["value"]
+        row = {"kind": e["kind"], "value": v}
+        dec = try_decode(v)
+        if dec != v:
+            row["decoded"] = dec
+        out[name] = row
+    js = json.dumps(out, ensure_ascii=False, indent=1)
+    if a.out:
+        open(a.out, "w", encoding="utf-8").write(js)
+        print(f"[+] {len(out)} ключей -> {a.out}")
+    else:
+        print(js)
+
+
+def cmd_blobs(a):
+    text, bom, entries = iter_all(a.prefs)
+    for name, e in sorted(entries.items()):
+        dec = try_decode(e["value"])
+        if dec != e["value"] and dec and dec.lstrip()[:1] in "{[":
+            print(f"=== {name} (decoded {len(dec)} ch) ===")
+            print(dec[:a.head] + (f"\n... [+{len(dec)-a.head} ch]" if len(dec) > a.head else ""))
+            print()
+
+
+def cmd_get(a):
+    text, bom, entries = iter_all(a.prefs)
+    e = entries.get(a.key)
+    if not e:
+        print(f"<нет ключа: {a.key}>", file=sys.stderr)
+        sys.exit(1)
+    print(f"kind   : {e['kind']}")
+    print(f"raw    : {e['value']}")
+    dec = try_decode(e["value"])
+    if dec != e["value"]:
+        print(f"decoded: {dec}")
+
+
+def cmd_mirror(a):
+    text, bom, entries = iter_all(a.prefs)
+    uid = detect_uid(entries)
+    if not uid:
+        sys.exit(" accountId не найден")
+    same = diff = 0
+    diffs = []
+    for name, e in entries.items():
+        if not name.startswith("LOCAL"):
+            continue
+        alt = f"{uid}_{name[5:]}"
+        if alt in entries:
+            if str(e["value"]).lower() == str(entries[alt]["value"]).lower():
+                same += 1
+            else:
+                diff += 1
+                diffs.append((name, e["value"], entries[alt]["value"]))
+    print(f"сравнено {same + diff}, совпало {same}, РАЗЛИЧИЙ {diff}")
+    for n, lv, uv in diffs[:a.limit]:
+        print(f"  {n}: LOCAL={lv!r}  UID={uv!r}")
+
+
+def set_key(text, key, value, kind):
+    """Хирургическая правка/вставка одного ключа. -> (new_text, action)"""
+    for kind_rx, rx in ELEM_RE.items():
+        for m in rx.finditer(text):
+            if m.group(1) == key:
+                if kind_rx == "string":
+                    new = f'<string name="{key}">{value}</string>'
+                else:
+                    new = f'<{kind_rx} name="{key}" value="{value}" />'
+                return text[:m.start()] + new + text[m.end():], "replaced"
+    if kind == "int":
+        el = f'<int name="{key}" value="{value}" />'
+    elif kind == "long":
+        el = f'<long name="{key}" value="{value}" />'
+    elif kind == "boolean":
+        el = f'<boolean name="{key}" value="{value}" />'
+    else:
+        el = f'<string name="{key}">{value}</string>'
+    if "</map>" in text:
+        i = text.rindex("</map>")
+        return text[:i] + el + "\n" + text[i:], "added"
+    return text + el + "\n</map>\n", "added+closed_map"
+
+
+def mirror_key(key, uid):
+    """-> второй ключ зеркала или None. Учитывает регистр-суффиксы."""
+    if uid and key.startswith(f"{uid}_"):
+        cand = "LOCAL" + key[len(uid) + 1:]
+        return cand
+    if key.startswith("LOCAL"):
+        return f"{uid}_{key[5:]}"
+    return None
+
+
+def edit_keys(path, ops, yes=False):
+    """ops: list of (key, value, kind). Показывает дифф, бэкап, верификация."""
+    text, bom, entries = iter_all(path)
+    plan = []
+    for key, value, kind in ops:
+        old = entries.get(key)
+        plan.append((key, kind, old["value"] if old else "<отсутствует>",
+                     value, old["kind"] if old else "новый"))
+    if not plan:
+        print("нечего менять")
+        return
+    w = max(len(p[0]) for p in plan)
+    for key, kind, old, new, okind in plan:
+        print(f"  [{okind:>9}] {key:{w}s}  {old!r} -> {new!r} ({kind})")
+    if not yes and input("Применить? [y/N] ").strip().lower() not in ("y", "yes"):
+        print("отменено")
+        return
+    b = backup(path)
+    for key, kind, old, new, okind in plan:
+        text, _ = set_key(text, key, new, kind)
+    write_text(path, text, bom)
+    n, _ = verify(path)
+    print(f"[+] записано, бэкап: {b}; повторный парс: {n} элементов, OK")
+
+
+def cmd_set(a):
+    text, bom, entries = iter_all(a.prefs)
+    uid = detect_uid(entries)
+    kind = a.kind if a.kind != "auto" else guess_kind(a.value)
+    ops = [(a.key, a.value, kind)]
+    if a.mirror:
+        mk = mirror_key(a.key, uid)
+        if mk and mk in entries:
+            # сохраняем регистр bool существующего зеркала
+            mval, mkind = a.value, kind
+            if entries[mk]["kind"] == "string" and a.value.lower() in ("true", "false"):
+                mval = a.value.capitalize() if entries[mk]["value"][:1].isupper() else a.value.lower()
+            ops.append((mk, mval, mkind))
+        else:
+            print(f"[i] зеркала для {a.key} нет ({mk}) — правлю только основной")
+    edit_keys(a.prefs, ops, yes=a.yes)
+
+
+def cmd_del(a):
+    text, bom, entries = iter_all(a.prefs)
+    uid = detect_uid(entries)
+    keys = [a.key]
+    if a.mirror:
+        mk = mirror_key(a.key, uid)
+        if mk and mk in entries:
+            keys.append(mk)
+    plan = []
+    for k in keys:
+        e = entries.get(k)
+        if not e:
+            print(f"<нет ключа: {k}>", file=sys.stderr)
+            continue
+        plan.append((k, e["kind"], e["value"], "<удалён>", e["kind"]))
+    if not plan:
+        return
+    for k, kind, old, new, ok in plan:
+        print(f"  {k}: {old!r} -> <удалён>")
+    if not a.yes and input("Удалить? [y/N] ").strip().lower() not in ("y", "yes"):
+        print("отменено")
+        return
+    b = backup(a.prefs)
+    for k, *_ in plan:
+        m = entries[k]["match"]
+        text = text[:m.start()] + text[m.end():]
+    write_text(a.prefs, text, bom)
+    verify(a.prefs)
+    print(f"[+] удалено, бэкап: {b}")
+
+
+def cmd_gems(a):
+    text, bom, entries = iter_all(a.prefs)
+    uid = detect_uid(entries)
+    if not uid:
+        sys.exit(" accountId не найден")
+    n = a.n
+    keys = {
+        f"{uid}_gems": str(n),
+        f"{uid}_last_gems": str(n),
+        f"{uid}_var_gems": "0",
+    }
+    cum_k = f"{uid}_cumulative_gems"
+    if cum_k in entries:
+        try:
+            cum = int(entries[cum_k]["value"])
+        except ValueError:
+            cum = 0
+        keys[cum_k] = str(max(cum, n))  # ledger: cumulative >= текущие
+    if a.all_ns:
+        keys["LOCALlast_gems"] = str(n)
+    ops = [(k, v, "int") for k, v in keys.items()]
+    edit_keys(a.prefs, ops, yes=a.yes)
+    print("[!] не забудь синхронизировать game.data (gems/lastGems/varGems):")
+    print(f"    python3 sk_save_editor.py preset <profile>/game.data gems {n} --yes")
+
+
+def cmd_unlock_heroes(a):
+    text, bom, entries = iter_all(a.prefs)
+    uid = detect_uid(entries)
+    if not uid:
+        sys.exit(" accountId не найден")
+    ops = []
+    for name, e in sorted(entries.items(), key=lambda kv: kv[0]):
+        if re.fullmatch(rf"{uid}_c\d+_unlock", name):
+            ops.append((name, "true", "string"))
+        elif re.fullmatch(r"LOCALc\d+_unlock", name):
+            ops.append((name, "True", "string"))
+    if not ops:
+        print("ключей *_cN_unlock не найдено")
+        return
+    if a.extend:
+        ids = sorted({int(g) for k in entries
+                      for g in re.findall(r"c(\d+)_unlock$", k)})
+        for i in ids:
+            for key, val in ((f"{uid}_c{i}_unlock", "true"),
+                             (f"LOCALc{i}_unlock", "True")):
+                if key not in entries:
+                    ops.append((key, val, "string"))
+    print(f"[i] будет выставлено {len(ops)} ключей (регистр bool по неймспейсу)")
+    edit_keys(a.prefs, ops, yes=a.yes)
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    for name, fn in [("info", cmd_info), ("schema", cmd_schema), ("dump", cmd_dump),
+                     ("blobs", cmd_blobs), ("get", cmd_get), ("set", cmd_set),
+                     ("del", cmd_del), ("mirror", cmd_mirror),
+                     ("gems", cmd_gems), ("unlock-heroes", cmd_unlock_heroes)]:
+        p = sub.add_parser(name)
+        p.add_argument("prefs", help="путь к prefs.xml (v2.playerprefs.xml)")
+        if name == "dump":
+            p.add_argument("-o", "--out", help="JSON-файл для выгрузки")
+        if name == "blobs":
+            p.add_argument("--head", type=int, default=1200, help="символов на blob")
+        if name == "get":
+            p.add_argument("key")
+        if name == "mirror":
+            p.add_argument("--limit", type=int, default=20)
+        if name == "set":
+            p.add_argument("key")
+            p.add_argument("value")
+            p.add_argument("--kind", choices=["auto", "int", "string", "long",
+                                              "boolean", "float"], default="auto")
+            p.add_argument("--mirror", action="store_true",
+                           help="править и LOCAL*/<UID>_ зеркало")
+        if name == "del":
+            p.add_argument("key")
+            p.add_argument("--mirror", action="store_true")
+        if name == "gems":
+            p.add_argument("n", type=int, help="новое значение gems")
+            p.add_argument("--all-ns", action="store_true", default=True,
+                           help="также LOCALlast_gems (по умолчанию вкл)")
+        if name in ("set", "del", "gems", "unlock-heroes"):
+            p.add_argument("--yes", action="store_true")
+        if name == "unlock-heroes":
+            p.add_argument("--extend", action="store_true",
+                           help="создать ключи для всех виденных id героев")
+        p.set_defaults(fn=fn)
+    a = ap.parse_args()
+    a.fn(a)
+
+
+import json  # noqa: E402  (используется в cmd_dump)
+
+if __name__ == "__main__":
+    main()

@@ -130,7 +130,24 @@ UTF-16LE JSON определяется и правится автоматиче�
 
 Все три закрываются одной командой `pull` на устройстве с реальными сейвами.
 
-## 7. Заметка о статистике-антифроде
+## 8. Вторая половина сэйва: playerprefs (prefs.xml)
+
+Секционные `.data` — не весь сэйв: герои/растения/леджер-кэш/флаги секций
+живут в `shared_prefs/*.v2.playerprefs.xml` (2 105 ключей на реальном
+устройстве, два неймспейса `<UID>_*` и `LOCAL*`). Разбор —
+[PREFS-870.md](PREFS-870.md), инструмент — `tools/sk_prefs.py`:
+
+```bash
+python3 tools/sk_prefs.py info prefs.xml
+python3 tools/sk_prefs.py gems prefs.xml 50000 --yes       # леджер + LOCALlast_gems
+python3 tools/sk_prefs.py unlock-heroes prefs.xml --extend --yes
+python3 tools/sk_prefs.py set prefs.xml <UID>_room_level 9 --mirror --yes
+```
+
+Полный профиль = править prefs.xml И `.data` согласованно (гемы: леджер в
+prefs ↔ `gems/lastGems/varGems` в game.data).
+
+## 9. Заметка о статистике-антифроде
 
 `statisticData.KrppVerifiedUsdCents` / `KrppCountedOrderIds` — верифицированные
 покупки; `mallReloadData.buyGemCount*` — счётчики покупок алмазов. Резкие

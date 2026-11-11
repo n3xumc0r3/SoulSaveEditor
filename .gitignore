@@ -22,3 +22,8 @@ skdump/
 SoulKnightCloud*.json
 *.pretty.json
 __pycache__/
+prefs.xml
+prefs*.xml
+*.v2.playerprefs.xml
+*.bak_*
+*.tmp

@@ -203,7 +203,7 @@ cdn.chillyroom.com/game/...             ; ассеты hot-update
 ## Чеклист для эмулятора
 
 1. `files/*.data` — все, включая `game.data`, `battles.data`, `statistic*`.
-2. `shared_prefs/*.v2.playerprefs.xml` — вычитать `DataRijndael128Key`/`DataRijndaelIV`/`DataAES256Key`.
+2. `shared_prefs/*.v2.playerprefs.xml` — ~~вычитать `DataRijndael128Key`/`DataRijndaelIV`/`DataAES256Key`~~ **ВЫПОЛНЕНО 12.11.2026: ключей В ФАЙЛЕ НЕТ** (при активном `OpenRijTest_<UID>=1`). Итог и полный разбор файла — [PREFS-870.md](PREFS-870.md) §7; вопрос источника ключа переформулирован (серверный конфиг / константа в коде / отдельный файл).
 3. Сейвы до/после первого облачного логина — дифф синхронизации.
 4. (опц.) динамический дамп dump.cs через frida-il2cpp-bridge / Zygisk-Il2CppDumper.
 5. (опц.) дамп трафика `GetBlobSaveAsync`/`FetchGameDataAsync` и ответа `/SafeCheck/Validate`.
